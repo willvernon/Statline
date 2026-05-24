@@ -1,0 +1,23 @@
+[project]
+name = "statline"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dbt-core>=1.11.10",
+    "dbt-duckdb>=1.10.1",
+    "duckdb>=1.5.2",
+    "nflreadpy>=0.1.5",
+    "pandas>=3.0.3",
+    "polars>=1.40.1",
+    "python-dotenv>=1.2.2",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+    "jupyter>=1.1.1",
+    "pytest>=9.0.3",
+    "ruff>=0.15.13",
+]

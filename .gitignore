@@ -5,6 +5,7 @@ target/
 dbt_packages/
 logs/
 .databricks/
+ingestion/manual-data/
 
 # Environments
 .env
@@ -20,7 +21,7 @@ venv.bak/
 # opencode / agents (do not commit local agent artifacts)
 .grok
 .claude
-AGENTS.md
+.cursor/
 .opencode/
 **/*agent*
 .agents/
