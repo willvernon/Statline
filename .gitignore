@@ -1,3 +1,23 @@
+# Project-specific (from devlog)
+.env
+.env*
+__pycache__/
+*.pyc
+.venv/
+target/
+dbt_packages/
+logs/
+.databricks/
+
+# opencode / agents (do not commit local agent artifacts)
+.grok
+.claude
+AGENTS.md
+.opencode/
+**/*agent*
+.agents/
+agents/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
