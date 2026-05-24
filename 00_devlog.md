@@ -10,19 +10,16 @@ Long planning session focused on project direction before writing a single line 
 
 A production-style NFL data pipeline for player and team game analytics. Built to feed personal sports projects and a Sports App without spending the majority of time on ETL every time fresh data is needed.
 
-#### Stack decided:
+#### Tool Stack:
+Data Sources:   nflreadpy, nflverse, Pro Football Reference
+Extract/Load:   Python
+Transform:      dbt (DuckDB adapter locally, Snowflake adapter when available)
+Storage:        DuckDB (local) → Snowflake (when student account approved)
+Orchestration:  Airflow (Docker)
+Dashboard:      Streamlit + Sports App
 
-Data Sources: nflreadpy, nflverse, Pro Football Reference
-ETL: Databricks
-Transformation: dbt (via Databricks connector)
-Storage: Delta Lake (via Databricks)
-Orchestration: Databricks Workflows
-Dashboard: Streamlit + Sports App
 
-#### Key decisions:
-
-Switched from Snowflake to Databricks which was recommended by a senior DE, Free Edition available, lakehouse architecture is the better long-term bet.
-
+#### Schema
 _Star Schema_: two fact tables, three dimension tables
 
 The grain of core _fact tables_ locked:
@@ -67,10 +64,18 @@ logs/
 
 Set up the repo and folder structure first. What does your current folder structure look like?
 
-#### Next Up:
-
-Set up GitHub repo and folder structure
-Get Databricks Community Edition running
-Explore nflreadpy — pull raw data and understand what's actually in it before writing ingestion scripts
+## :Todo
+1. - [x] Setup — repo, structure, tools, credentials
+2. - [ ] Data sourcing — identify and explore raw data in notebooks
+3. - [ ] Schema design — star schema diagram before writing any SQL in dbdiagram
+4. - [ ] Raw ingestion — Python scripts load raw data
+5. - [ ] Staging models — dbt cleans and types raw data
+6. - [ ] Mart models — dbt builds fact and dimension tables
+7. - [ ] Data quality — dbt tests on every model
+8. - [ ] Validation — query marts, verify correctness manually
+9. - [ ] Orchestration — Airflow (Docker)
+10. - [ ] CI/CD — GitHub Actions runs dbt tests on push
+11. - [ ] Dashboard — Streamlit layer on top of marts
+12. - [ ] Documentation — architecture diagram, README, devlog
 
 ---

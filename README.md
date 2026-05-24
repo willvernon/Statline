@@ -13,10 +13,10 @@ Building a data pipeline to support sports modeling and analytics. I have many h
 
 **Data Sources:** nflreadpy · Pro Football Reference · nflverse · additional open source sources
 
-**ETL:** Databricks · dbt (via Databricks connector)
+**ETL:**  dbt 
 
-**Storage:** Delta Lake (via Databricks)
+**Storage:** Snowflakes
 
-**Orchestration:** Databricks Workflows
+**Orchestration:** Airflow
 
-**Dashboard:** Streamlit · Sports App
+**Dashboard:** Streamlit & Sports App
