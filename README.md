@@ -49,13 +49,16 @@ flowchart LR
 Star schema — two fact tables, three dimension tables.
 
 **Grain:**
+
 - `fact_player_game` — one row per player per game
 - `fact_team_game` — one row per team per game
 
 **Dimensions:**
+
 - `dim_player`, `dim_team`, `dim_game`
 
 **Design choices:**
+
 - Wide `fact_player_game` with all box-score stats; position-specific dbt views (e.g. `mart_qb_game`) built on top later
 - `dim_player` filtered to columns needed for analytics
 - NFL only; historical 2000–2024 first; live ingestion deferred to 2025 season
