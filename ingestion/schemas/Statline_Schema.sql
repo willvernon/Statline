@@ -1,8 +1,19 @@
 CREATE TABLE IF NOT EXISTS lake.raw.dim_teams (
+  "team_id" VARCHAR,
+  "team_nick" VARCHAR,
   "team_abbr" VARCHAR,
-  "team_name" VARCHAR,
-  "team_location" VARCHAR,
-  "team_color" VARCHAR
+  "team_conf" VARCHAR,
+  "team_division" VARCHAR,
+  "team_color" VARCHAR,
+  "team_color2" VARCHAR,
+  "team_color3" VARCHAR,
+  "team_color4" VARCHAR,
+  "team_logo_wikipedia" VARCHAR,
+  "team_logo_espn" VARCHAR,
+  "team_wordmark" VARCHAR,
+  "team_conference_logo" VARCHAR,
+  "team_league_logo" VARCHAR,
+  "team_logo_squared" VARCHAR
 );
 
 CREATE TABLE IF NOT EXISTS lake.raw.dim_player (
