@@ -43,7 +43,6 @@ CREATE TABLE IF NOT EXISTS lake.raw.dim_player (
   "ngs_position_group" VARCHAR,
   "ngs_position" VARCHAR,
   "pff_position" VARCHAR,
-  "team_abbr" VARCHAR,
   "jersey_number" VARCHAR,
   "rookie_season" INTEGER,
   "last_season" INTEGER,
