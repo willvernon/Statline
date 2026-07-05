@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS lake.raw.dim_teams (
+CREATE TABLE IF NOT EXISTS lake.raw.dim_team (
   "team_id" VARCHAR,
   "team_nick" VARCHAR,
   "team_abbr" VARCHAR,
