@@ -33,6 +33,8 @@ Originally planned around Databricks and Unity Catalog, but the data here is sma
 nflreadpy → Python extract → Python load → DuckLake raw → dbt → DuckLake marts → Streamlit
 ```
 
+Raw tables in `lake.raw` mirror nflreadpy source shapes (e.g. `nfl_player_stats`); the star schema (`dim_*`, `fact_*`) is built in dbt marts.
+
 ```mermaid
 flowchart LR
     nflreadpy[nflreadpy] --> extract[Python Extract]

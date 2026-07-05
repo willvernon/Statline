@@ -253,3 +253,6 @@ workbench/
 
 .databricks
 .DS_Store
+
+# Claude Code personal/local settings
+.claude/settings.local.json
