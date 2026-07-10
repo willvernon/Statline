@@ -4,20 +4,20 @@ from ingestion.ducklake import get_connection
 
 
 def main() -> None:
-    players = nfl.load_players()
+    rosters = nfl.load_rosters()
 
     with get_connection() as conn:
-        conn.register('players', players)
+        conn.register('rosters', rosters)
         conn.sql("""
-            INSERT INTO lake.raw.nfl_players
+            INSERT INTO lake.raw.nfl_rosters
             SELECT *
-            FROM players
+            FROM rosters
         """)
 
-        result = conn.sql('SELECT COUNT(*) FROM lake.raw.nfl_players').fetchone()
+        result = conn.sql('SELECT COUNT(*) FROM lake.raw.nfl_rosters').fetchone()
         if result is None:
             raise RuntimeError('COUNT(*) returned no rows')
-        print(f'Loaded {result[0]} rows into lake.raw.nfl_players')
+        print(f'Loaded {result[0]} rows into lake.raw.nfl_rosters')
 
 
 if __name__ == '__main__':

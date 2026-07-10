@@ -8,14 +8,11 @@ def main() -> None:
 
     with get_connection() as conn:
         conn.register('teams', teams)
-        conn.sql('DELETE FROM lake.raw.nfl_teams')
-        conn.sql(
-            """
+        conn.sql("""
             INSERT INTO lake.raw.nfl_teams
             SELECT *
             FROM teams
-            """
-        )
+        """)
 
         result = conn.sql('SELECT COUNT(*) FROM lake.raw.nfl_teams').fetchone()
         if result is None:
