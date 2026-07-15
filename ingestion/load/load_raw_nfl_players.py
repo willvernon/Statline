@@ -8,8 +8,9 @@ def main() -> None:
 
     with get_connection() as conn:
         conn.register('players', players)
+        conn.sql('DELETE FROM lake.raw.nfl_players')
         conn.sql("""
-            INSERT INTO lake.raw.nfl_players
+            INSERT INTO lake.raw.nfl_players BY NAME
             SELECT *
             FROM players
         """)
