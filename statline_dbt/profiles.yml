@@ -1,0 +1,16 @@
+statline:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ":memory:"
+      threads: 4
+      extensions:
+        - ducklake
+      attach:
+        - path: "ducklake:{{ env_var('LAKE_CATALOG_PATH') }}"
+          alias: lake
+          options:
+            data_path: "{{ env_var('LAKE_DATA_PATH') }}"
+      database: lake
+      schema: main
