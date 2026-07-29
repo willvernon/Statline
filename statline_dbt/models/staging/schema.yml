@@ -1,0 +1,127 @@
+version: 2
+
+models:
+  - name: stg_nfl_teams
+    description: "Cleaned NFL teams from raw. Grain: one row per team."
+    columns:
+      - name: team_abbr
+        description: "NFL team abbreviation (natural key for dim_team)."
+        tests:
+          - unique
+          - not_null
+      - name: team_name
+        description: "Full team name."
+      - name: team_conf
+        description: "Conference (AFC / NFC)."
+      - name: team_division
+        description: "Division within conference."
+
+  - name: stg_nfl_players
+    description: "Cleaned NFL players from raw. Grain: one row per player."
+    columns:
+      - name: gsis_id
+        description: "GSIS player id (natural key for dim_player; facts.player_id maps here)."
+        tests:
+          - unique
+          - not_null
+      - name: display_name
+        description: "Primary display name."
+      - name: first_name
+        description: "Player first name."
+      - name: last_name
+        description: "Player last name."
+      - name: suffix
+        description: "Name suffix (Jr, Sr, II, III) for family disambiguation."
+      - name: birth_date
+        description: "Date of birth (cast to DATE in staging)."
+      - name: position
+        description: "Primary position."
+      - name: position_group
+        description: "Position group."
+      - name: draft_team
+        description: "Team that drafted the player (abbreviation when present)."
+
+  - name: stg_nfl_schedules
+    description: "Cleaned NFL schedules from raw. Grain: one row per game."
+    columns:
+      - name: game_id
+        description: "Game identifier (natural key for dim_game)."
+        tests:
+          - unique
+          - not_null
+      - name: season
+        description: "NFL season year."
+        tests:
+          - not_null
+      - name: week
+        description: "Week number within season."
+        tests:
+          - not_null
+      - name: game_type
+        description: "Game type (e.g. REG, POST)."
+      - name: home_team
+        description: "Home team abbreviation."
+        tests:
+          - not_null
+      - name: away_team
+        description: "Away team abbreviation."
+        tests:
+          - not_null
+      - name: gameday
+        description: "Game date (source string; cast in marts if needed)."
+
+  - name: stg_nfl_player_stats
+    description: >
+      Player-week box scores from raw. Grain: one row per player per week.
+      Silver keeps full measure set; star-schema column cuts belong in marts.
+    columns:
+      - name: player_id
+        description: "GSIS player id (maps to dim_player.gsis_id)."
+        tests:
+          - not_null
+      - name: season
+        description: "NFL season year."
+        tests:
+          - not_null
+      - name: week
+        description: "Week number within season."
+        tests:
+          - not_null
+      - name: season_type
+        description: "Season type (e.g. REG, POST)."
+      - name: game_id
+        description: "Game identifier (FK to dim_game when present)."
+      - name: team_abbr
+        description: "Player team abbreviation (renamed from team)."
+        tests:
+          - not_null
+      - name: opponent_team_abbr
+        description: "Opponent team abbreviation (renamed from opponent_team)."
+      - name: position
+        description: "Player position for that game/week."
+      - name: position_group
+        description: "Position group for that game/week."
+
+  - name: stg_nfl_team_stats
+    description: >
+      Team-week box scores from raw. Grain: one row per team per week.
+      Silver keeps full measure set; star-schema column cuts belong in marts.
+    columns:
+      - name: team_abbr
+        description: "Team abbreviation (renamed from team; FK to dim_team)."
+        tests:
+          - not_null
+      - name: season
+        description: "NFL season year."
+        tests:
+          - not_null
+      - name: week
+        description: "Week number within season."
+        tests:
+          - not_null
+      - name: season_type
+        description: "Season type (e.g. REG, POST)."
+      - name: game_id
+        description: "Game identifier (FK to dim_game when present)."
+      - name: opponent_team_abbr
+        description: "Opponent team abbreviation (renamed from opponent_team)."

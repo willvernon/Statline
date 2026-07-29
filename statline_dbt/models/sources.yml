@@ -1,0 +1,18 @@
+# Declares tables that already exist (loaded by Python into lake.raw).
+# dbt will NOT create these — models only read them via source().
+version: 2
+
+sources:
+  - name: raw
+    database: lake
+    schema: raw
+    tables:
+      - name: nfl_teams
+        description: "One row per NFL team (nflreadpy load_teams)."
+      - name: nfl_players
+        description: "One row per player (nflreadpy load_players)."
+      - name: nfl_schedules
+      - name: nfl_player_stats
+      - name: nfl_team_stats
+      - name: nfl_rosters
+      - name: nfl_draft_picks
