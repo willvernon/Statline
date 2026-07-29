@@ -1,3 +1,11 @@
+00_devlog.md
+
+lake/
+*.ducklake
+*.ducklake.wal
+*.duckdb
+*.duckdb.wal
+
 __pycache__/
 *.pyc
 target/
@@ -5,6 +13,8 @@ dbt_packages/
 logs/
 .databricks/
 ingestion/manual-data/
+
+.vscode/
 
 # Environments
 .env
@@ -243,3 +253,6 @@ workbench/
 
 .databricks
 .DS_Store
+
+# Claude Code personal/local settings
+.claude/settings.local.json

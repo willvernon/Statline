@@ -33,6 +33,8 @@ Originally planned around Databricks and Unity Catalog, but the data here is sma
 nflreadpy → Python extract → Python load → DuckLake raw → dbt → DuckLake marts → Streamlit
 ```
 
+Raw tables in `lake.raw` mirror nflreadpy source shapes (e.g. `nfl_player_stats`); the star schema (`dim_*`, `fact_*`) is built in dbt marts.
+
 ```mermaid
 flowchart LR
     nflreadpy[nflreadpy] --> extract[Python Extract]
@@ -49,13 +51,16 @@ flowchart LR
 Star schema — two fact tables, three dimension tables.
 
 **Grain:**
+
 - `fact_player_game` — one row per player per game
 - `fact_team_game` — one row per team per game
 
 **Dimensions:**
+
 - `dim_player`, `dim_team`, `dim_game`
 
 **Design choices:**
+
 - Wide `fact_player_game` with all box-score stats; position-specific dbt views (e.g. `mart_qb_game`) built on top later
 - `dim_player` filtered to columns needed for analytics
 - NFL only; historical 2000–2024 first; live ingestion deferred to 2025 season
