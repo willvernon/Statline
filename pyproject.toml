@@ -8,7 +8,7 @@ packages = ['ingestion']
 [project]
 name = "statline"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local NFL lakehouse pipeline: nflreadpy → DuckLake → dbt star schema"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -20,6 +20,4 @@ dependencies = [
     "pyarrow>=24.0.0",
     "python-dotenv>=1.2.2",
     "requests>=2.34.2",
-    "torch>=2.12.0",
-    "torchvision>=0.27.0",
 ]

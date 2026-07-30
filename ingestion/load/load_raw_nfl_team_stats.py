@@ -3,8 +3,9 @@ import nflreadpy as nfl
 from ingestion.ducklake import get_connection
 
 
-def main() -> None:
-    season = nfl.get_current_season()
+def main(season: int | None = None) -> None:
+    if season is None:
+        season = nfl.get_current_season()
     team_stats = nfl.load_team_stats(seasons=season)
 
     with get_connection() as conn:

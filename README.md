@@ -1,90 +1,163 @@
 # statline
 
-**Current scope:** Historical NFL player stats and roster data (2000–2024)
-**Planned:** Live game ingestion when the 2025 season begins
+Local sports data lakehouse. Right now: historical NFL (box scores, schedules, rosters, draft) landed in DuckLake, cleaned in dbt, served as a star schema.
+
+**Done:** bronze ingest + silver staging + gold marts  
+**Not built yet:** Airflow, Streamlit, live game feeds, multi-sport  
+**Deferred:** live 2025+ in-season ingestion (historical path first)
 
 ---
 
-## Objective
+## Why this exists
 
-Building a data pipeline to support sports modeling and analytics. I have many hobby projects during the NFL season that model and analyze different situations. The problem I run into is that I'm very busy and the data sources I use require a full ETL every time I need fresh data, leaving little time for actual analysis. I also built a Sports App that needed a better way to handle historical data. Statline solves this by building a production-style automated pipeline that handles ingestion, transformation, and storage so the data is always ready.
+I burn a lot of time re-pulling and re-shaping public NFL data every season for hobby models and a sports app. Sources are fine; the glue isn't. Statline is the production-style pipeline so the data is already in a clean, queryable place when I need it.
 
-## Stack
+Also a portfolio piece for Data Engineer roles (Indianapolis / Chicago / Austin) — something I can walk through end to end and defend.
 
-Originally planned around Databricks and Unity Catalog, but the data here is small (one sport, about 25 seasons of box scores), so distributed compute was solving a problem I don't have. Switched to a local DuckDB + DuckLake stack: same pipeline shape, runs entirely on one machine, and simpler to run and reason about end to end.
+## Stack (and the pivot)
 
-**Data Sources:** nflreadpy (primary) · nflverse · Pro Football Reference (planned secondary)
+Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport and ~25 seasons of box scores — distributed compute was solving a problem I don't have. Pivoted to fully local:
 
-**Extract:** Python (nflreadpy)
+| Piece | Choice |
+|--------|--------|
+| Extract | Python + `nflreadpy` |
+| Load | Python → DuckLake (`lake.raw`) |
+| Storage | DuckLake (SQL catalog + Parquet) |
+| Transform | dbt + `dbt-duckdb` |
+| Env | `uv` + `pyproject.toml` / `uv.lock` |
 
-**Load:** Python → DuckDB
+Planned later (not in repo yet): Airflow for scheduling, Streamlit for a thin dashboard, PFR as a secondary source.
 
-**Storage:** DuckLake (DuckDB's native lakehouse format — SQL catalog + Parquet, local)
-
-**Transform:** dbt (dbt-duckdb adapter)
-
-**Orchestration:** Airflow
-
-**Dashboard:** Streamlit
-
-## Architecture
+## Pipeline
 
 ```
-nflreadpy → Python extract → Python load → DuckLake raw → dbt → DuckLake marts → Streamlit
+nflreadpy → Python load → lake.raw (bronze)
+                       → dbt stg_* (silver)
+                       → dbt dim_* / fact_* (gold)
+                       → notebooks / sports app (non-live)
 ```
 
-Raw tables in `lake.raw` mirror nflreadpy source shapes (e.g. `nfl_player_stats`); the star schema (`dim_*`, `fact_*`) is built in dbt marts.
+| Layer | Schema / objects | Owner |
+|--------|------------------|--------|
+| Bronze | `lake.raw.nfl_*` | Python loaders — source-shaped, no star renames |
+| Silver | `lake.main_staging.stg_*` | dbt views — clean, rename, key filters |
+| Gold | `lake.main_marts.dim_*` / `fact_*` | dbt tables — star schema for app + shared metrics |
 
-```mermaid
-flowchart LR
-    nflreadpy[nflreadpy] --> extract[Python Extract]
-    extract --> load[Python Load]
-    load --> raw[DuckLake raw tables]
-    raw --> dbt[dbt transforms]
-    dbt --> marts[DuckLake marts]
-    marts --> streamlit[Streamlit]
-    dbt --> orchestrator[Airflow]
-```
+dbt prefixes custom schemas with the target schema (`main`), so you see `main_staging` / `main_marts` instead of bare `staging` / `marts`. Same idea as `raw`.
 
-## Data Model
+## Data model (gold)
 
-Star schema — two fact tables, three dimension tables.
+**Facts**
 
-**Grain:**
-
-- `fact_player_game` — one row per player per game
+- `fact_player_game` — one row per player per game (wide box score)
 - `fact_team_game` — one row per team per game
 
-**Dimensions:**
+**Dims**
 
-- `dim_player`, `dim_team`, `dim_game`
+- `dim_player` — NK `gsis_id` (`player_id` on facts maps here)
+- `dim_team` — NK `team_abbr`
+- `dim_game` — NK `game_id`
 
-**Design choices:**
+Rosters and draft picks live in silver only for now.
 
-- Wide `fact_player_game` with all box-score stats; position-specific dbt views (e.g. `mart_qb_game`) built on top later
-- `dim_player` filtered to columns needed for analytics
-- NFL only; historical 2000–2024 first; live ingestion deferred to 2025 season
-
-## Development Setup
-
-- **Environment:** uv + `pyproject.toml` / `uv.lock` — never install packages globally
-- **Secrets:** credentials in `.env` only; never committed
-- **Git:** feature branches, merge via PR even when solo; `main` stays clean
-- **dbt:** project lives inside this repo, not as a standalone repo
-- **Docker:** required for running Airflow locally
-
-**`.gitignore` essentials:**
+## Repo layout
 
 ```
-.env
-__pycache__/
-*.pyc
-.venv/
-target/
-dbt_packages/
-logs/
-*.duckdb
-*.duckdb.wal
+ingestion/           # DuckLake connect + raw loaders
+  load/              # load_raw_nfl_*.py
+  schemas/           # DDL for lake.raw
+scripts/             # ingestion-runner.py
+statline_dbt/        # dbt project (staging + marts)
+lake/                # local catalog + parquet (gitignored)
+notebooks/           # exploration (not the pipeline)
 ```
 
-Phase checklist with progress tracking lives in [`00_devlog.md`](00_devlog.md).
+## Setup
+
+**Requirements:** Python ≥ 3.13, [uv](https://docs.astral.sh/uv/)
+
+```bash
+git clone <repo>
+cd Statline
+uv sync
+cp .env.example .env
+```
+
+`.env` (from `.env.example`):
+
+```bash
+LAKE_CATALOG_PATH=lake/metadata.ducklake
+LAKE_DATA_PATH=lake/data
+```
+
+Paths are **relative to the repo root**. Always run ingest and dbt from the repo root, not from `statline_dbt/`. The catalog stores the data path as `lake/data/`; changing cwd or using absolute paths without care will break attach.
+
+**Fish shell** (dbt does not load `.env` itself — export into the session):
+
+```fish
+cd /path/to/Statline
+set -x LAKE_CATALOG_PATH lake/metadata.ducklake
+set -x LAKE_DATA_PATH lake/data
+```
+
+**Bash:**
+
+```bash
+export LAKE_CATALOG_PATH=lake/metadata.ducklake
+export LAKE_DATA_PATH=lake/data
+# or: set -a && source .env && set +a
+```
+
+### Initialize empty lake (first time)
+
+```bash
+uv run python -m ingestion.ducklake
+```
+
+### Load raw (bronze)
+
+```bash
+# all loaders (current-season defaults on season-scoped tables)
+uv run python scripts/ingestion-runner.py
+
+# or one table
+uv run python ingestion/load/load_raw_nfl_teams.py
+```
+
+Season-scoped loaders currently default to `nflreadpy.get_current_season()`. Historical backfill was done in development; parameterized seasons are a follow-up so a fresh clone can reproduce 2000–2024 cleanly.
+
+### Transform (silver + gold)
+
+```bash
+uv run dbt debug --project-dir statline_dbt --profiles-dir statline_dbt
+uv run dbt build --project-dir statline_dbt --profiles-dir statline_dbt
+```
+
+`statline_dbt/profiles.yml` uses `threads: 1` — parallel dbt materializations were flaky against local DuckLake; single-thread is the reliable demo path.
+
+### Query
+
+Attach the same lake (DuckDB CLI, notebook, or app) and read:
+
+- Exploration / flexible analysis → `main_staging.stg_*`
+- App + “official” metrics → `main_marts.dim_*` / `fact_*`
+
+## Development notes
+
+- **uv only** for Python deps — no global `pip install`
+- **Feature branches + PRs** even solo; `main` stays merge-only
+- **Never commit** `.env`, `lake/`, `*.duckdb`, dbt `target/`
+- Running devlog: `devlog/` (local, gitignored)
+
+## Status
+
+| Phase | State |
+|--------|--------|
+| Setup + DuckLake | Done |
+| Bronze ingest (`nfl_*` raw) | Done |
+| dbt silver (`stg_*`) | Done |
+| dbt gold (star marts) | Done |
+| Loader season params / backfill UX | Next |
+| Airflow | Not started |
+| Streamlit | Not started |
+| Live feeds / multi-sport | Later |
