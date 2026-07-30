@@ -1,5 +1,9 @@
 {
-  "language": "postgresql",
-  "keywordCase": "upper",
-  "tabWidth": 2
+  "language": "duckdb",
+  "keywordCase": "lower",
+  "dataTypeCase": "lower",
+  "functionCase": "lower",
+  "tabWidth": 4,
+  "useTabs": false,
+  "linesBetweenQueries": 1
 }
