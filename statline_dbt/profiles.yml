@@ -4,7 +4,8 @@ statline:
     dev:
       type: duckdb
       path: ":memory:"
-      threads: 4
+      # DuckLake table swaps can flake under parallel dbt threads; 1 is safer for local demos
+      threads: 1
       extensions:
         - ducklake
       attach:
