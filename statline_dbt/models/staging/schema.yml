@@ -125,3 +125,53 @@ models:
         description: "Game identifier (FK to dim_game when present)."
       - name: opponent_team_abbr
         description: "Opponent team abbreviation (renamed from opponent_team)."
+
+  - name: stg_nfl_rosters
+    description: >
+      Roster membership from raw. Grain: player x team x season x week
+      (week null for pre-2002 seasonal rows).
+    columns:
+      - name: gsis_id
+        description: "GSIS player id (links to dim_player)."
+        tests:
+          - not_null
+      - name: season
+        description: "NFL season year."
+        tests:
+          - not_null
+      - name: team_abbr
+        description: "Team abbreviation (renamed from team)."
+        tests:
+          - not_null
+      - name: week
+        description: "Week number when present; null for older seasonal roster rows."
+      - name: position
+        description: "Roster position."
+      - name: status
+        description: "Player roster status."
+
+  - name: stg_nfl_draft_picks
+    description: "Draft picks from raw. Grain: one row per draft pick (season x round x pick)."
+    columns:
+      - name: season
+        description: "Draft year."
+        tests:
+          - not_null
+      - name: round
+        description: "Draft round."
+        tests:
+          - not_null
+      - name: pick
+        description: "Overall or round pick number from source."
+        tests:
+          - not_null
+      - name: team_abbr
+        description: "Drafting team abbreviation (renamed from team)."
+        tests:
+          - not_null
+      - name: gsis_id
+        description: "GSIS player id when available (null for some historical picks)."
+      - name: position
+        description: "Player position at draft."
+      - name: college
+        description: "College at draft."
