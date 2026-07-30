@@ -86,5 +86,3 @@ logs/
 *.duckdb
 *.duckdb.wal
 ```
-
-Phase checklist with progress tracking lives in [`00_devlog.md`](00_devlog.md).
