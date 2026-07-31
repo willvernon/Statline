@@ -9,6 +9,18 @@ from contextlib import contextmanager
 SCHEMA_PATH = Path(__file__).parent / 'schemas' / 'Statline_Schema.sql'
 
 
+def _attach_lake_sql(catalog: str, data_path: str) -> str:
+    """Build ATTACH SQL for DuckLake.
+
+    Absolute DATA_PATH must use OVERRIDE_DATA_PATH when the catalog still
+    records the relative path (lake/data/) from first init.
+    """
+    opts = f"DATA_PATH '{data_path}'"
+    if Path(data_path).is_absolute():
+        opts += ', OVERRIDE_DATA_PATH true'
+    return f"ATTACH 'ducklake:{catalog}' AS lake ({opts})"
+
+
 def initialize_ducklake() -> None:
     load_dotenv()
 
@@ -16,9 +28,7 @@ def initialize_ducklake() -> None:
     lake_data_path = os.environ['LAKE_DATA_PATH']
 
     with duckdb.connect() as conn:
-        conn.sql(
-            f"ATTACH 'ducklake:{lake_catalog}' AS lake (DATA_PATH '{lake_data_path}')"
-        )
+        conn.sql(_attach_lake_sql(lake_catalog, lake_data_path))
         conn.sql('CREATE SCHEMA IF NOT EXISTS lake.raw')
         conn.sql(SCHEMA_PATH.read_text())
     print('DuckLake initialized: schema and tables created')
@@ -30,7 +40,7 @@ def get_connection():
 
     Usage:
         with get_connection() as conn:
-            conn.sql("INSERT INTO lake.raw.dim_team ...")
+            conn.sql("INSERT INTO lake.raw.nfl_teams ...")
     """
     load_dotenv()
 
@@ -39,9 +49,7 @@ def get_connection():
 
     conn = duckdb.connect()
     try:
-        conn.sql(
-            f"ATTACH 'ducklake:{lake_catalog}' AS lake (DATA_PATH '{lake_data_path}')"
-        )
+        conn.sql(_attach_lake_sql(lake_catalog, lake_data_path))
         yield conn
     finally:
         conn.close()

@@ -1,9 +1,9 @@
 # statline
 
-Local sports data lakehouse. Right now: historical NFL (box scores, schedules, rosters, draft) landed in DuckLake, cleaned in dbt, served as a star schema.
+Local sports data lakehouse. Right now: historical NFL (box scores, schedules, rosters, draft) landed in DuckLake, cleaned in dbt, orchestrated in Dagster, served as a star schema.
 
-**Done:** bronze ingest + silver staging + gold marts  
-**Not built yet:** Dagster, Streamlit, live game feeds, multi-sport  
+**Done:** bronze ingest + silver staging + gold marts + local Dagster  
+**Not built yet:** live game feeds, multi-sport  
 **Deferred:** live 2025+ in-season ingestion (historical path first)
 
 ---
@@ -24,9 +24,10 @@ Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport 
 | Load | Python → DuckLake (`lake.raw`) |
 | Storage | DuckLake (SQL catalog + Parquet) |
 | Transform | dbt + `dbt-duckdb` |
+| Orchestration | Dagster (local assets) |
 | Env | `uv` + `pyproject.toml` / `uv.lock` |
 
-Planned later (not in repo yet): Dagster for scheduling, Streamlit for a thin dashboard, PFR as a secondary source.
+Planned later: PFR as a secondary source. No cloud scheduler yet — local asset materialization is the orchestration story.
 
 ## Pipeline
 
@@ -35,6 +36,8 @@ nflreadpy → Python load → lake.raw (bronze)
                        → dbt stg_* (silver)
                        → dbt dim_* / fact_* (gold)
                        → notebooks / sports app (non-live)
+
+         Dagster assets: bronze → silver → gold (local UI)
 ```
 
 | Layer | Schema / objects | Owner |
@@ -44,6 +47,12 @@ nflreadpy → Python load → lake.raw (bronze)
 | Gold | `lake.main_marts.dim_*` / `fact_*` | dbt tables — star schema for app + shared metrics |
 
 dbt prefixes custom schemas with the target schema (`main`), so you see `main_staging` / `main_marts` instead of bare `staging` / `marts`. Same idea as `raw`.
+
+### Asset graph (Dagster)
+
+Medallion groups in the local UI — bronze raw loaders, silver staging, gold marts:
+
+![Dagster asset graph — bronze, silver, gold](docs/images/dagster-asset-graph.svg)
 
 ## Data model (gold)
 
@@ -66,8 +75,12 @@ Rosters and draft picks live in silver only for now.
 ingestion/           # DuckLake connect + raw loaders
   load/              # load_raw_nfl_*.py
   schemas/           # DDL for lake.raw
+orchestration/       # Dagster definitions + assets
+  assets/            # raw multi-asset, dagster-dbt
+  resources/         # lake path normalization
 scripts/             # ingestion-runner.py
 statline_dbt/        # dbt project (staging + marts)
+docs/images/         # portfolio screenshots / graphs
 lake/                # local catalog + parquet (gitignored)
 notebooks/           # exploration (not the pipeline)
 ```
@@ -90,7 +103,7 @@ LAKE_CATALOG_PATH=lake/metadata.ducklake
 LAKE_DATA_PATH=lake/data
 ```
 
-Paths are **relative to the repo root**. Always run ingest and dbt from the repo root, not from `statline_dbt/`. The catalog stores the data path as `lake/data/`; changing cwd or using absolute paths without care will break attach.
+Paths are **relative to the repo root** for CLI ingest/dbt. Always run from the repo root, not from `statline_dbt/`. The catalog stores the data path as `lake/data/`.
 
 **Fish shell** (dbt does not load `.env` itself — export into the session):
 
@@ -135,6 +148,25 @@ uv run dbt build --project-dir statline_dbt --profiles-dir statline_dbt
 
 `statline_dbt/profiles.yml` uses `threads: 1` — parallel dbt materializations were flaky against local DuckLake; single-thread is the reliable demo path.
 
+### Orchestrate (Dagster, local)
+
+From **repo root**:
+
+```fish
+mkdir -p .dagster_home
+set -x DAGSTER_HOME (pwd)/.dagster_home
+set -x LAKE_CATALOG_PATH lake/metadata.ducklake
+set -x LAKE_DATA_PATH lake/data
+uv run dagster dev -m orchestration.definitions
+```
+
+Open http://localhost:3000. Materialize bronze (`raw/*`), then silver/gold dbt assets (or the full graph).
+
+- Definitions: `orchestration/definitions.py`
+- Bronze: multi-asset wrappers around existing `load_raw_nfl_*.py` (season config on seasonal tables)
+- Silver/gold: `dagster-dbt` from the dbt manifest; groups `bronze` / `silver` / `gold`
+- Path note: dagster-dbt runs with cwd = `statline_dbt/`. Orchestration normalizes lake paths and dbt uses `override_data_path` so DuckLake parquet IO still hits the monorepo `lake/` tree.
+
 ### Query
 
 Attach the same lake (DuckDB CLI, notebook, or app) and read:
@@ -146,7 +178,7 @@ Attach the same lake (DuckDB CLI, notebook, or app) and read:
 
 - **uv only** for Python deps — no global `pip install`
 - **Feature branches + PRs** even solo; `main` stays merge-only
-- **Never commit** `.env`, `lake/`, `*.duckdb`, dbt `target/`
+- **Never commit** `.env`, `lake/`, `*.duckdb`, dbt `target/`, `.dagster_home/`
 - Running devlog: `devlog/` (local, gitignored)
 
 ## Status
@@ -157,7 +189,6 @@ Attach the same lake (DuckDB CLI, notebook, or app) and read:
 | Bronze ingest (`nfl_*` raw) | Done |
 | dbt silver (`stg_*`) | Done |
 | dbt gold (star marts) | Done |
+| Dagster (local assets) | Done |
 | Loader season params / backfill UX | Next |
-| Dagster | Not started |
-| Streamlit | Not started |
 | Live feeds / multi-sport | Later |

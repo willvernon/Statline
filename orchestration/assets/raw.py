@@ -15,13 +15,27 @@ class SeasonConfig(Config):
 
 @multi_asset(
     outs={
-        'nfl_teams': AssetOut(key_prefix=['raw'], group_name='bronze'),
-        'nfl_players': AssetOut(key_prefix=['raw'], group_name='bronze'),
-        'nfl_player_stats': AssetOut(key_prefix=['raw'], group_name='bronze'),
-        'nfl_schedules': AssetOut(key_prefix=['raw'], group_name='bronze'),
-        'nfl_rosters': AssetOut(key_prefix=['raw'], group_name='bronze'),
-        'nfl_team_stats': AssetOut(key_prefix=['raw'], group_name='bronze'),
-        'nfl_draft_picks': AssetOut(key_prefix=['raw'], group_name='bronze'),
+        'nfl_teams': AssetOut(
+            key_prefix=['raw'], group_name='bronze', is_required=False
+        ),
+        'nfl_players': AssetOut(
+            key_prefix=['raw'], group_name='bronze', is_required=False
+        ),
+        'nfl_player_stats': AssetOut(
+            key_prefix=['raw'], group_name='bronze', is_required=False
+        ),
+        'nfl_schedules': AssetOut(
+            key_prefix=['raw'], group_name='bronze', is_required=False
+        ),
+        'nfl_rosters': AssetOut(
+            key_prefix=['raw'], group_name='bronze', is_required=False
+        ),
+        'nfl_team_stats': AssetOut(
+            key_prefix=['raw'], group_name='bronze', is_required=False
+        ),
+        'nfl_draft_picks': AssetOut(
+            key_prefix=['raw'], group_name='bronze', is_required=False
+        ),
     },
     can_subset=True,
 )
