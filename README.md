@@ -3,7 +3,7 @@
 Local sports data lakehouse. Right now: historical NFL (box scores, schedules, rosters, draft) landed in DuckLake, cleaned in dbt, served as a star schema.
 
 **Done:** bronze ingest + silver staging + gold marts  
-**Not built yet:** Airflow, Streamlit, live game feeds, multi-sport  
+**Not built yet:** Dagster, Streamlit, live game feeds, multi-sport  
 **Deferred:** live 2025+ in-season ingestion (historical path first)
 
 ---
@@ -26,7 +26,7 @@ Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport 
 | Transform | dbt + `dbt-duckdb` |
 | Env | `uv` + `pyproject.toml` / `uv.lock` |
 
-Planned later (not in repo yet): Airflow for scheduling, Streamlit for a thin dashboard, PFR as a secondary source.
+Planned later (not in repo yet): Dagster for scheduling, Streamlit for a thin dashboard, PFR as a secondary source.
 
 ## Pipeline
 
@@ -158,6 +158,6 @@ Attach the same lake (DuckDB CLI, notebook, or app) and read:
 | dbt silver (`stg_*`) | Done |
 | dbt gold (star marts) | Done |
 | Loader season params / backfill UX | Next |
-| Airflow | Not started |
+| Dagster | Not started |
 | Streamlit | Not started |
 | Live feeds / multi-sport | Later |
