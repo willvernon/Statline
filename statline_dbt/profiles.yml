@@ -12,6 +12,10 @@ statline:
         - path: "ducklake:{{ env_var('LAKE_CATALOG_PATH') }}"
           alias: lake
           options:
+            # Catalog was created with relative lake/data/; Dagster runs dbt with
+            # cwd=statline_dbt/, so LAKE_* are absolute (see orchestration.resources.paths).
+            # OVERRIDE_DATA_PATH accepts absolute DATA_PATH and makes parquet IO work.
             data_path: "{{ env_var('LAKE_DATA_PATH') }}"
+            override_data_path: true
       database: lake
       schema: main

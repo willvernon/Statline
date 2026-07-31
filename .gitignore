@@ -1,3 +1,4 @@
+.dagster_home/
 devlog/
 
 lake/
@@ -18,7 +19,8 @@ ingestion/manual-data/
 
 # Environments
 .env
-.env*
+.env.*
+!.env.example
 .envrc
 .venv
 env/
