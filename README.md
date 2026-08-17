@@ -10,7 +10,7 @@ Local sports data lakehouse. Right now: historical NFL (box scores, schedules, r
 
 ## Why this exists
 
-I burn a lot of time re-pulling and re-shaping public NFL data every season for hobby models and a sports app. Sources are fine; the glue isn't. Statline is the production-style pipeline so the data is already in a clean, queryable place when I need it.
+I burn a lot of time re-pulling and re-shaping public NFL data every week in seaon for hobby models, analysis, and a sports app. The ability to have a fully orchestraded pipeline helps both as a portfolio project and actual practical use for me. Statline is a production style pipeline so the data is already in a clean, queryable place when I need it.
 
 Also a portfolio piece for Data Engineer roles (Indianapolis / Chicago / Austin) — something I can walk through end to end and defend.
 
@@ -18,14 +18,14 @@ Also a portfolio piece for Data Engineer roles (Indianapolis / Chicago / Austin)
 
 Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport and ~25 seasons of box scores — distributed compute was solving a problem I don't have. Pivoted to fully local:
 
-| Piece | Choice |
-|--------|--------|
-| Extract | Python + `nflreadpy` |
-| Load | Python → DuckLake (`lake.raw`) |
-| Storage | DuckLake (SQL catalog + Parquet) |
-| Transform | dbt + `dbt-duckdb` |
-| Orchestration | Dagster (local assets) |
-| Env | `uv` + `pyproject.toml` / `uv.lock` |
+| Piece         | Choice                              |
+| ------------- | ----------------------------------- |
+| Extract       | Python + `nflreadpy`                |
+| Load          | Python → DuckLake (`lake.raw`)      |
+| Storage       | DuckLake (SQL catalog + Parquet)    |
+| Transform     | dbt + `dbt-duckdb`                  |
+| Orchestration | Dagster (local assets)              |
+| Env           | `uv` + `pyproject.toml` / `uv.lock` |
 
 Planned later: PFR as a secondary source. No cloud scheduler yet — local asset materialization is the orchestration story.
 
@@ -40,11 +40,11 @@ nflreadpy → Python load → lake.raw (bronze)
          Dagster assets: bronze → silver → gold (local UI)
 ```
 
-| Layer | Schema / objects | Owner |
-|--------|------------------|--------|
-| Bronze | `lake.raw.nfl_*` | Python loaders — source-shaped, no star renames |
-| Silver | `lake.main_staging.stg_*` | dbt views — clean, rename, key filters |
-| Gold | `lake.main_marts.dim_*` / `fact_*` | dbt tables — star schema for app + shared metrics |
+| Layer  | Schema / objects                   | Owner                                             |
+| ------ | ---------------------------------- | ------------------------------------------------- |
+| Bronze | `lake.raw.nfl_*`                   | Python loaders — source-shaped, no star renames   |
+| Silver | `lake.main_staging.stg_*`          | dbt views — clean, rename, key filters            |
+| Gold   | `lake.main_marts.dim_*` / `fact_*` | dbt tables — star schema for app + shared metrics |
 
 dbt prefixes custom schemas with the target schema (`main`), so you see `main_staging` / `main_marts` instead of bare `staging` / `marts`. Same idea as `raw`.
 
@@ -183,12 +183,12 @@ Attach the same lake (DuckDB CLI, notebook, or app) and read:
 
 ## Status
 
-| Phase | State |
-|--------|--------|
-| Setup + DuckLake | Done |
-| Bronze ingest (`nfl_*` raw) | Done |
-| dbt silver (`stg_*`) | Done |
-| dbt gold (star marts) | Done |
-| Dagster (local assets) | Done |
-| Loader season params / backfill UX | Next |
-| Live feeds / multi-sport | Later |
+| Phase                              | State |
+| ---------------------------------- | ----- |
+| Setup + DuckLake                   | Done  |
+| Bronze ingest (`nfl_*` raw)        | Done  |
+| dbt silver (`stg_*`)               | Done  |
+| dbt gold (star marts)              | Done  |
+| Dagster (local assets)             | Done  |
+| Loader season params / backfill UX | Next  |
+| Live feeds / multi-sport           | Later |
