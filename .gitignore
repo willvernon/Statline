@@ -1,4 +1,5 @@
 .dagster_home/
+.tmp_dagster_home_*/
 devlog/
 
 lake/

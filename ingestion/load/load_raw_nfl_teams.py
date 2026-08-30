@@ -7,19 +7,37 @@ def main() -> None:
     teams = nfl.load_teams()
 
     with get_connection() as conn:
-        conn.register('teams', teams)
-        conn.sql('DELETE FROM lake.raw.nfl_teams')
-        conn.sql("""
-            INSERT INTO lake.raw.nfl_teams BY NAME
+        conn.register("teams", teams)
+        table = "lake.raw.nfl_teams"
+        table_name = "teams"
+
+        lake_cols = {row[0] for row in conn.sql(f"DESCRIBE {table}").fetchall()}
+        source_cols = set(teams.columns)
+        new_cols = set(source_cols - lake_cols)
+        if new_cols:
+            source_types = {
+                name: typ
+                for name, typ, *_ in conn.sql(f"DESCRIBE {table_name}").fetchall()
+            }
+            for col in new_cols:
+                print(f"new cols: adding {col}")
+                dtype = source_types[col]
+                conn.sql(f'ALTER TABLE {table} ADD "{col}" {dtype}')
+        print("no new cols")
+        conn.sql(f"DELETE FROM {table}")
+        conn.sql(
+            f"""
+            INSERT INTO {table} BY NAME
             SELECT *
-            FROM teams
-        """)
+            FROM {table_name}
+        """
+        )
 
-        result = conn.sql('SELECT COUNT(*) FROM lake.raw.nfl_teams').fetchone()
+        result = conn.sql(f"SELECT COUNT(*) FROM {table}").fetchone()
         if result is None:
-            raise RuntimeError('COUNT(*) returned no rows')
-        print(f'Loaded {result[0]} rows into lake.raw.nfl_teams')
+            raise RuntimeError("COUNT(*) returned no rows")
+        print(f"Loaded {result[0]} rows into {table}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
