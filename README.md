@@ -154,7 +154,9 @@ export DAGSTER_HOME="$PWD/.dagster_home"
 uv run dagster dev -m orchestration.definitions
 ```
 
-**Fish:** `mkdir -p .dagster_home; set -x DAGSTER_HOME (pwd)/.dagster_home`
+**zsh:** `mkdir -p .dagster_home; export DAGSTER_HOME="$PWD/.dagster_home"`  
+**Fish:** `mkdir -p .dagster_home; set -x DAGSTER_HOME (pwd)/.dagster_home`  
+**Nushell:** `mkdir .dagster_home; $env.DAGSTER_HOME = ($env.PWD | path join ".dagster_home")`
 
 Open http://localhost:3000.
 
