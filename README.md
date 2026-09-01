@@ -1,16 +1,16 @@
-# statline
+# Statline
 
-Local sports data lakehouse. Right now that means historical NFL (box scores, schedules, rosters, draft) landed in DuckLake, cleaned in dbt, orchestrated in Dagster, and served as a star schema.
-
-The graph is wired and there is a weekly Dagster job. It is not an always-on scheduler, and a fresh clone still cannot backfill 2000-2024 on its own.
+Statline is a local NFL data lakehouse. Public box scores, schedules, rosters, and draft picks land in DuckLake, are cleaned and tested in dbt, and are orchestrated in Dagster as a bronze → silver → gold pipeline. The gold layer is a star schema built for analysis and a downstream sports app.
 
 **Built:** bronze ingest, silver staging, gold marts, local Dagster assets + `nfl_weekly_refresh`  
 **Not built:** live game feeds, multi-sport, parameterized historical backfill  
 **Deferred:** live 2025+ in-season ingestion. Historical path first.
 
+The weekly job is local, not a hosted always-on scheduler. A fresh clone cannot yet backfill 2000–2024 on its own.
+
 ## Why this exists
 
-I burn a lot of time re-pulling and re-shaping public NFL data every week in season for hobby models, analysis, and a sports app. I want that work sitting in a pipeline so the data is already clean and queryable when I need it. Same project is the portfolio piece for Data Engineer roles (Indianapolis / Chicago / Austin). Something I can walk through end to end and defend.
+During the NFL season I was re-extracting and reshaping the same public data every week for models, analysis, and a sports app. That work belongs in a pipeline so the data is already clean and queryable. Statline is also the project I walk through for Data Engineer roles in Indianapolis, Chicago, and Austin.
 
 ## Stack (and the pivot)
 
