@@ -1,6 +1,9 @@
 .dagster_home/
 .tmp_dagster_home_*/
 devlog/
+todo.md
+TODO.md
+todo/
 
 lake/
 *.ducklake
