@@ -1,16 +1,15 @@
 # statline
 
-Local sports data lakehouse. Right now that means historical NFL (box scores, schedules, rosters, draft) landed in DuckLake, cleaned in dbt, orchestrated in Dagster, and served as a star schema.
+Local sports data lakehouse. Right now that means non-live NFL (box scores, schedules, rosters, draft) landed in DuckLake, cleaned in dbt, orchestrated in Dagster, and served as a star schema.
 
-The graph is wired and there is a weekly Dagster job. It is not an always-on scheduler, and a fresh clone still cannot backfill 2000-2024 on its own.
+The graph is wired and there is a weekly Dagster job. It is not an always-on scheduler, and a fresh clone does not backfill 2000-2024 on its own.
 
 **Built:** bronze ingest, silver staging, gold marts, local Dagster assets + `nfl_weekly_refresh`  
 **Not built:** live game feeds, multi-sport, parameterized historical backfill  
-**Deferred:** live 2025+ in-season ingestion. Historical path first.
 
 ## Why this exists
 
-I burn a lot of time re-pulling and re-shaping public NFL data every week in season for hobby models, analysis, and a sports app. I want that work sitting in a pipeline so the data is already clean and queryable when I need it. Same project is the portfolio piece for Data Engineer roles (Indianapolis / Chicago / Austin). Something I can walk through end to end and defend.
+I burn a lot of time re-pulling and re-shaping public NFL data every week in season for hobby models, analysis, and a sports app. I want that work sitting in a pipeline so the data is already clean and queryable when I need it. 
 
 ## Stack (and the pivot)
 
@@ -25,7 +24,7 @@ Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport 
 | Orchestration | Dagster (local job + schedule)      |
 | Env           | `uv` + `pyproject.toml` / `uv.lock` |
 
-PFR is a later secondary source. The schedule lives in code (`nfl_weekly_schedule`, Tue 8am Indianapolis) and starts Stopped. Nothing ticks unless `dagster dev` is running and you turn the schedule on.
+The schedule lives in code (`nfl_weekly_schedule`, Tue 8am Indianapolis) and starts Stopped. Nothing ticks unless `dagster dev` is running and you turn the schedule on.
 
 ## Pipeline
 
