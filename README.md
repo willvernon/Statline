@@ -5,11 +5,11 @@ Local sports data lakehouse. Right now that means non-live NFL (box scores, sche
 The graph is wired and there is a weekly Dagster job. It is not an always-on scheduler, and a fresh clone does not backfill 2000-2024 on its own.
 
 **Built:** bronze ingest, silver staging, gold marts, local Dagster assets + `nfl_weekly_refresh`  
-**Not built:** live game feeds, multi-sport, parameterized historical backfill  
+**Not built:** live game feeds, multi-sport, one-command 2000-2024 backfill
 
 ## Why this exists
 
-I burn a lot of time re-pulling and re-shaping public NFL data every week in season for hobby models, analysis, and a sports app. I want that work sitting in a pipeline so the data is already clean and queryable when I need it. 
+I burn a lot of time re-pulling and re-shaping public NFL data every week in season for hobby models, analysis, and a sports app. I want that work sitting in a pipeline so the data is already clean and queryable when I need it.
 
 ## Stack (and the pivot)
 
@@ -23,8 +23,6 @@ Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport 
 | Transform     | dbt + `dbt-duckdb`                  |
 | Orchestration | Dagster (local job + schedule)      |
 | Env           | `uv` + `pyproject.toml` / `uv.lock` |
-
-The schedule lives in code (`nfl_weekly_schedule`, Tue 8am Indianapolis) and starts Stopped. Nothing ticks unless `dagster dev` is running and you turn the schedule on.
 
 ## Pipeline
 
@@ -61,26 +59,27 @@ Medallion groups in the local UI: bronze raw loaders, silver staging, gold marts
 
 **Dims**
 
-- `dim_player`: NK `gsis_id` (`player_id` on facts maps here)
-- `dim_team`: NK `team_abbr`
-- `dim_game`: NK `game_id`
+- `dim_player`: natural key `gsis_id` (`player_id` on facts maps here)
+- `dim_team`: natural key `team_abbr`
+- `dim_game`: natural key `game_id`
 
 Rosters and draft picks live in silver only for now.
 
 ## Repo layout
 
 ```
-ingestion/           # DuckLake connect + raw loaders
-  load/              # load_raw_nfl_*.py
-  schemas/           # DDL for lake.raw
-orchestration/       # Dagster definitions + assets
-  assets/            # raw multi-asset, dagster-dbt
-  resources/         # lake path normalization
-scripts/             # ingestion-runner.py
-statline_dbt/        # dbt project (staging + marts)
-docs/images/         # portfolio screenshots / graphs
-lake/                # local catalog + parquet (gitignored)
-notebooks/           # exploration (not the pipeline)
+ingestion/              # DuckLake connect + raw loaders
+  load/                 # load_raw_nfl_*.py
+  schemas/              # DDL for lake.raw
+orchestration/          # Dagster definitions + assets
+  assets/               # raw multi-asset, dagster-dbt
+  resources/            # lake path normalization
+scripts/                # ingestion-runner.py
+statline_dbt/           # dbt project (staging + marts)
+docs/                   # design notes + graphs
+  multi-sport-data.md   # how more leagues would land (no code yet)
+lake/                   # local catalog + parquet (gitignored)
+notebooks/              # exploration (not the pipeline)
 ```
 
 ## Setup
@@ -101,23 +100,11 @@ LAKE_CATALOG_PATH=lake/metadata.ducklake
 LAKE_DATA_PATH=lake/data
 ```
 
-Paths are **relative to the repo root** for CLI ingest/dbt. Always run from the repo root, not from `statline_dbt/`. The catalog stores the data path as `lake/data/`.
+Paths are **relative to the repo root**. Always run from the repo root, not from `statline_dbt/`. The catalog stores the data path as `lake/data/`.
 
-**Fish** (dbt does not load `.env` itself; export into the session):
+Python loaders read `.env` on their own. **dbt CLI does not**, and `dagster dev` does not pick up `DAGSTER_HOME` from `.env` either. Export what those two need in the session (see below).
 
-```fish
-cd /path/to/Statline
-set -x LAKE_CATALOG_PATH lake/metadata.ducklake
-set -x LAKE_DATA_PATH lake/data
-```
-
-**Bash:**
-
-```bash
-export LAKE_CATALOG_PATH=lake/metadata.ducklake
-export LAKE_DATA_PATH=lake/data
-# or: set -a && source .env && set +a
-```
+## Run
 
 ### Initialize empty lake (first time)
 
@@ -128,40 +115,51 @@ uv run python -m ingestion.ducklake
 ### Load raw (bronze)
 
 ```bash
-# all loaders (current-season defaults on season-scoped tables)
+# current season (nflreadpy.get_current_season() on season-scoped tables)
 uv run python scripts/ingestion-runner.py
 
-# or one table
+# one season
+uv run python scripts/ingestion-runner.py 2024
+
+# or one table (current-season default; no CLI year on the individual loaders)
 uv run python ingestion/load/load_raw_nfl_teams.py
 ```
 
-Season-scoped loaders currently default to `nflreadpy.get_current_season()`. Historical backfill was done in development. Parameterized seasons are still a follow-up, so a fresh clone cannot reproduce 2000-2024 cleanly.
+A year on the runner reloads that season for stats, schedules, rosters, and draft. Teams and players are full snapshots. There is no loop for 2000-2024, so a fresh clone does not reproduce the full history in one command.
 
 ### Transform (silver + gold)
 
+Export lake paths first, then:
+
 ```bash
+export LAKE_CATALOG_PATH=lake/metadata.ducklake
+export LAKE_DATA_PATH=lake/data
+# or: set -a && source .env && set +a
+
 uv run dbt debug --project-dir statline_dbt --profiles-dir statline_dbt
 uv run dbt build --project-dir statline_dbt --profiles-dir statline_dbt
 ```
+
+**Fish:** `set -x LAKE_CATALOG_PATH lake/metadata.ducklake` and `set -x LAKE_DATA_PATH lake/data`.
 
 `statline_dbt/profiles.yml` uses `threads: 1`. Parallel dbt materializations were flaky against local DuckLake. Single-thread is the path that actually works for a demo.
 
 ### Orchestrate (Dagster, local)
 
-From **repo root**:
+From **repo root**. Lake paths come from `.env` when the code location loads. `DAGSTER_HOME` still has to be an absolute path in the shell, or you get a fresh `.tmp_dagster_home_*` every start.
 
-```fish
+```bash
 mkdir -p .dagster_home
-set -x DAGSTER_HOME (pwd)/.dagster_home
-set -x LAKE_CATALOG_PATH lake/metadata.ducklake
-set -x LAKE_DATA_PATH lake/data
+export DAGSTER_HOME="$PWD/.dagster_home"
 uv run dagster dev -m orchestration.definitions
 ```
+
+**Fish:** `mkdir -p .dagster_home; set -x DAGSTER_HOME (pwd)/.dagster_home`
 
 Open http://localhost:3000.
 
 - Materialize bronze (`raw/*`), then silver/gold, or launch the `nfl_weekly_refresh` job (same graph).
-- Schedule `nfl_weekly_schedule` is defined in `orchestration/definitions.py` and starts Stopped. Enable it in Automation if you want the Tuesday tick. It only fires while this process is running.
+- Schedule `nfl_weekly_schedule` is in `orchestration/definitions.py` (Tue 8am Indianapolis). It starts Stopped. Enable it in Automation if you want the Tuesday tick. Nothing fires unless this process is running.
 - Bronze assets wrap the existing `load_raw_nfl_*.py` loaders (season config on seasonal tables).
 - Silver/gold come from `dagster-dbt` and the dbt manifest. Groups are `bronze` / `silver` / `gold`.
 - dagster-dbt runs with cwd = `statline_dbt/`. Orchestration makes lake paths absolute and dbt sets `override_data_path` so parquet still lands in the repo `lake/` tree.
@@ -183,11 +181,12 @@ Attach the same lake (DuckDB CLI, notebook, or app):
 
 ## Status
 
-| Phase                       | State |
-| --------------------------- | ----- |
-| Setup + DuckLake            | Done  |
-| Bronze ingest (`nfl_*` raw) | Done  |
-| dbt silver (`stg_*`)        | Done  |
-| dbt gold (star marts)       | Done  |
-| Dagster assets + weekly job | Done  |
-| Live feeds / multi-sport    | Next  |
+| Phase                       | State                                 |
+| --------------------------- | ------------------------------------- |
+| Setup + DuckLake            | Done                                  |
+| Bronze ingest (`nfl_*` raw) | Done                                  |
+| dbt silver (`stg_*`)        | Done                                  |
+| dbt gold (star marts)       | Done                                  |
+| Dagster assets + weekly job | Done                                  |
+| One-command historical load | Next (runner takes one season today)  |
+| Live feeds / multi-sport    | Next. Map: `docs/multi-sport-data.md` |
