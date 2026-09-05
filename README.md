@@ -144,6 +144,8 @@ uv run dbt debug --project-dir statline_dbt --profiles-dir statline_dbt
 uv run dbt build --project-dir statline_dbt --profiles-dir statline_dbt
 ```
 
+Silver and gold models declare `unique` and `not_null` tests on keys in `statline_dbt/models/*/schema.yml`. `dbt build` runs them when the lake exists.
+
 `statline_dbt/profiles.yml` uses `threads: 1`. Parallel dbt materializations were flaky against local DuckLake. Single-thread is the path that actually works for a demo.
 
 ### Orchestrate (Dagster, local)
@@ -183,11 +185,12 @@ Attach the same lake (DuckDB CLI, notebook, or app):
 
 ## Status
 
-| Phase                       | State |
-| --------------------------- | ----- |
-| Setup + DuckLake            | Done  |
-| Bronze ingest (`nfl_*` raw) | Done  |
-| dbt silver (`stg_*`)        | Done  |
-| dbt gold (star marts)       | Done  |
-| Dagster assets + weekly job | Done  |
-| Live feeds / multi-sport    | Next  |
+| Phase                             | State |
+| --------------------------------- | ----- |
+| Setup + DuckLake                  | Done  |
+| Bronze ingest (`nfl_*` raw)       | Done  |
+| dbt silver (`stg_*`)              | Done  |
+| dbt gold (star marts)             | Done  |
+| dbt tests (`unique` / `not_null`) | Done  |
+| Dagster assets + weekly job       | Done  |
+| Live feeds / multi-sport          | Next  |
