@@ -2,7 +2,7 @@
 
 Local sports data lakehouse. Right now that means non-live NFL (box scores, schedules, rosters, draft) landed in DuckLake, cleaned in dbt, orchestrated in Dagster, and served as a star schema.
 
-The graph is wired and there is a weekly Dagster job. It is not an always-on scheduler, and a fresh clone does not backfill 2000-2024 on its own.
+The graph is wired and there is a weekly Dagster job. It is not an always-on scheduler.
 
 **Built:** bronze ingest, silver staging, gold marts, local Dagster assets + `nfl_weekly_refresh`  
 **Not built:** live game feeds, multi-sport, parameterized historical backfill  
@@ -22,7 +22,7 @@ Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport 
 | Storage       | DuckLake (SQL catalog + Parquet)    |
 | Transform     | dbt + `dbt-duckdb`                  |
 | Orchestration | Dagster (local job + schedule)      |
-| Env           | `uv` + `pyproject.toml` / `uv.lock` |
+| Env           | `uv` + `pyproject.toml`             |
 
 The schedule lives in code (`nfl_weekly_schedule`, Tue 8am Indianapolis) and starts Stopped. Nothing ticks unless `dagster dev` is running and you turn the schedule on.
 
