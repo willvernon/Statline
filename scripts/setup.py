@@ -37,6 +37,13 @@ def warn_optional_tools() -> None:
         print(f"  {name}: {url}")
 
 
+def ensure_dagster_home() -> Path:
+    """Create the local Dagster instance dir. `dagster dev` ignores .env."""
+    home = Path(".dagster_home").resolve()
+    home.mkdir(exist_ok=True)
+    return home
+
+
 def setup() -> None:
     require_uv()
     warn_optional_tools()
@@ -44,10 +51,19 @@ def setup() -> None:
     if not Path(".env").exists():
         shutil.copy(".env.example", ".env")
 
+    dagster_home = ensure_dagster_home()
+
     subprocess.run(["uv", "run", "python", "-m", "ingestion.ducklake"], check=True)
     subprocess.run(
         ["uv", "run", "python", "-m", "scripts.ingestion_runner"], check=True
     )
+
+    print(
+        "Dagster instance dir is ready. Export an absolute DAGSTER_HOME before "
+        "`dagster dev` (it does not read .env):"
+    )
+    print(f'  export DAGSTER_HOME="{dagster_home}"')
+    print("  uv run dagster dev -m orchestration.definitions")
 
 
 if __name__ == "__main__":
