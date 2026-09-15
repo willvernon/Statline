@@ -74,7 +74,7 @@ ingestion/              # DuckLake connect + raw loaders
 orchestration/          # Dagster definitions + assets
   assets/               # raw multi-asset, dagster-dbt
   resources/            # lake path normalization
-scripts/                # ingestion-runner.py
+scripts/                # ingestion_runner.py
 statline_dbt/           # dbt project (staging + marts)
 docs/                   # design notes + graphs
   multi-sport-data.md   # how more leagues would land (no code yet)
@@ -116,10 +116,10 @@ uv run python -m ingestion.ducklake
 
 ```bash
 # current season (nflreadpy.get_current_season() on season-scoped tables)
-uv run python scripts/ingestion-runner.py
+uv run python scripts/ingestion_runner.py
 
 # one season
-uv run python scripts/ingestion-runner.py 2024
+uv run python scripts/ingestion_runner.py 2024
 
 # or one table (current-season default; no CLI year on the individual loaders)
 uv run python ingestion/load/load_raw_nfl_teams.py
