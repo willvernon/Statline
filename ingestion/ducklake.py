@@ -27,6 +27,10 @@ def initialize_ducklake() -> None:
     lake_catalog = os.environ['LAKE_CATALOG_PATH']
     lake_data_path = os.environ['LAKE_DATA_PATH']
 
+    # ATTACH will create the catalog file, not the parent directories.
+    Path(lake_catalog).parent.mkdir(parents=True, exist_ok=True)
+    Path(lake_data_path).mkdir(parents=True, exist_ok=True)
+
     with duckdb.connect() as conn:
         conn.sql(_attach_lake_sql(lake_catalog, lake_data_path))
         conn.sql('CREATE SCHEMA IF NOT EXISTS lake.raw')

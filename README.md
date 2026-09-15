@@ -74,7 +74,8 @@ ingestion/              # DuckLake connect + raw loaders
 orchestration/          # Dagster definitions + assets
   assets/               # raw multi-asset, dagster-dbt
   resources/            # lake path normalization
-scripts/                # ingestion-runner.py
+scripts/                # ingestion_runner.py, clone setup
+cli/                    # Go CLI: export gold marts to parquet
 statline_dbt/           # dbt project (staging + marts)
 docs/                   # design notes + graphs
   multi-sport-data.md   # how more leagues would land (no code yet)
@@ -84,7 +85,15 @@ notebooks/              # exploration (not the pipeline)
 
 ## Setup
 
-**Requirements:** Python ≥ 3.13, [uv](https://docs.astral.sh/uv/)
+**Requirements:** Python ≥ 3.13, plus these CLIs:
+
+| Tool | Download |
+| ---- | -------- |
+| uv | [Install uv](https://docs.astral.sh/uv/getting-started/installation/) |
+| Go | [Download Go](https://go.dev/dl/) |
+| DuckDB | [Install DuckDB](https://duckdb.org/install/) |
+
+uv is required for Python deps and `uv run`. Go is required for the gold parquet export CLI (`cli/`). DuckDB CLI is optional for ad-hoc lake queries.
 
 ```bash
 git clone <repo>
@@ -116,10 +125,10 @@ uv run python -m ingestion.ducklake
 
 ```bash
 # current season (nflreadpy.get_current_season() on season-scoped tables)
-uv run python scripts/ingestion-runner.py
+uv run python scripts/ingestion_runner.py
 
 # one season
-uv run python scripts/ingestion-runner.py 2024
+uv run python scripts/ingestion_runner.py 2024
 
 # or one table (current-season default; no CLI year on the individual loaders)
 uv run python ingestion/load/load_raw_nfl_teams.py

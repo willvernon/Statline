@@ -33,27 +33,27 @@ def main(season: int | None = None) -> None:
         name = load.__module__
         try:
             load(season)
-            print(f'OK {name}')
+            print(f"OK {name}")
         except Exception as e:
-            print(f'FAILED {name}: {e}')
+            print(f"FAILED {name}: {e}")
             failed.append(name)
 
     for load in snapshots:
         name = load.__module__
         try:
             load()
-            print(f'OK {name}')
+            print(f"OK {name}")
         except Exception as e:
-            print(f'FAILED {name}: {e}')
+            print(f"FAILED {name}: {e}")
             failed.append(name)
 
     if failed:
-        print(f'Done with {len(failed)} failure(s): {failed}')
+        print(f"Done with {len(failed)} failure(s): {failed}")
         sys.exit(1)
 
-    print('All loaders succeeded')
+    print("All loaders succeeded")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     season_arg = int(sys.argv[1]) if len(sys.argv) > 1 else None
     main(season_arg)
