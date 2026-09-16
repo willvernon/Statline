@@ -15,14 +15,14 @@ During the NFL season I was re-extracting and reshaping the same public data eve
 
 Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport and about 25 seasons of box scores. Distributed compute was solving a problem I don't have, so I pivoted to fully local.
 
-| Piece         | Choice                         |
-| ------------- | ------------------------------ |
-| Extract       | Python + `nflreadpy`           |
-| Load          | Python → DuckLake (`lake.raw`) |
+| Piece         | Choice                           |
+| ------------- | -------------------------------- |
+| Extract       | Python + `nflreadpy`             |
+| Load          | Python → DuckLake (`lake.raw`)   |
 | Storage       | DuckLake (SQL catalog + Parquet) |
-| Transform     | dbt + `dbt-duckdb`             |
-| Orchestration | Dagster (local job + schedule) |
-| Env           | `uv` + `pyproject.toml`        |
+| Transform     | dbt + `dbt-duckdb`               |
+| Orchestration | Dagster (local job + schedule)   |
+| Env           | `uv` + `pyproject.toml`          |
 
 ## Pipeline
 
@@ -74,8 +74,8 @@ ingestion/              # DuckLake connect + raw loaders
 orchestration/          # Dagster definitions + assets
   assets/               # raw multi-asset, dagster-dbt
   resources/            # lake path normalization
-scripts/                # ingestion_runner.py, clone setup
-cli/                    # Go CLI: export gold marts to parquet
+scripts/                # setup.py (clone bootstrap), ingestion_runner.py
+cli/                    # Go CLI: COPY gold marts to parquet
 statline_dbt/           # dbt project (staging + marts)
 docs/                   # design notes + graphs
   multi-sport-data.md   # how more leagues would land (no code yet)
@@ -87,20 +87,25 @@ notebooks/              # exploration (not the pipeline)
 
 **Requirements:** Python ≥ 3.13, plus these CLIs:
 
-| Tool | Download |
-| ---- | -------- |
-| uv | [Install uv](https://docs.astral.sh/uv/getting-started/installation/) |
-| Go | [Download Go](https://go.dev/dl/) |
-| DuckDB | [Install DuckDB](https://duckdb.org/install/) |
+| Tool   | Download                                                              |
+| ------ | --------------------------------------------------------------------- |
+| uv     | [Install uv](https://docs.astral.sh/uv/getting-started/installation/) |
+| Go     | [Download Go](https://go.dev/dl/)                                     |
+| DuckDB | [Install DuckDB](https://duckdb.org/install/)                         |
 
 uv is required for Python deps and `uv run`. Go **1.27.1** (matches `go.work`) is required for the gold parquet export CLI (`cli/`). DuckDB CLI is optional for ad-hoc lake queries, not for the Go export.
+
+From **repo root**:
 
 ```bash
 git clone <repo>
 cd Statline
-uv sync
-cp .env.example .env
+uv run python scripts/setup.py
 ```
+
+`scripts/setup.py` exits if `uv` is missing (prints the download table). It copies `.env` from `.env.example` if needed, creates `.dagster_home`, inits DuckLake, loads **current-season** bronze, and `dbt build`s silver + gold. Then it prints the absolute `DAGSTER_HOME` export for `dagster dev`. Go is not required for that bootstrap — use it after gold exists ([Export gold (Go CLI)](#export-gold-go-cli)).
+
+To skip the load and do steps by hand: `uv sync`, `cp .env.example .env`, then the Run section below.
 
 `.env` (from `.env.example`):
 
@@ -111,9 +116,11 @@ LAKE_DATA_PATH=lake/data
 
 Paths are **relative to the repo root**. Always run from the repo root, not from `statline_dbt/`. The catalog stores the data path as `lake/data/`.
 
-Python loaders read `.env` on their own. **dbt CLI does not**, and `dagster dev` does not pick up `DAGSTER_HOME` from `.env` either. Export what those two need in the session (see below).
+Python loaders (and Dagster's code location) read `.env` for `LAKE_*`. **dbt CLI does not** — export lake paths for a hand-run `dbt`. `DAGSTER_HOME` is not a `.env` key; export it in the shell before `dagster dev`. `scripts/setup.py` already exports lake paths for its own `dbt build`.
 
 ## Run
+
+Skip this section if you already ran `scripts/setup.py` — it inits the lake, loads current-season bronze, and builds dbt. The commands below are the same steps, one at a time.
 
 ### Initialize empty lake (first time)
 
@@ -157,7 +164,7 @@ Silver and gold models declare `unique` and `not_null` tests on keys in `statlin
 
 ### Orchestrate (Dagster, local)
 
-From **repo root**. Lake paths come from `.env` when the code location loads. `DAGSTER_HOME` still has to be an absolute path in the shell, or you get a fresh `.tmp_dagster_home_*` every start.
+From **repo root**. Lake paths come from `.env` when the code location loads. `DAGSTER_HOME` is a shell export (absolute path), not `.env` — unset means a fresh `.tmp_dagster_home_*` every start.
 
 ```bash
 mkdir -p .dagster_home
@@ -179,7 +186,7 @@ Open http://localhost:3000.
 
 ### Export gold (Go CLI)
 
-Install Go 1.27.1 from the table above (`go version` to confirm). Gold marts must already exist (`dbt build` or Dagster). Run from **repo root** so `lake/` resolves.
+Install Go 1.27.1 from the table above (`go version` to confirm). Gold marts must already exist (`scripts/setup.py`, `dbt build`, or Dagster). Run from **repo root** so `lake/` resolves. This attaches the local lake and `COPY`s one mart to parquet — it is not ingest.
 
 ```bash
 go run ./cli -dataMart fact_player_game -dest "$HOME/Downloads/fact_player_game.parquet"
@@ -213,13 +220,13 @@ Attach the same lake (DuckDB CLI, notebook, or app):
 
 ## Status
 
-| Phase                             | State                                |
-| --------------------------------- | ------------------------------------ |
-| Setup + DuckLake                  | Done                                 |
-| Bronze ingest (`nfl_*` raw)       | Done                                 |
-| dbt silver (`stg_*`)              | Done                                 |
-| dbt gold (star marts)             | Done                                 |
-| dbt tests (`unique` / `not_null`) | Done                                 |
-| Dagster assets + weekly job       | Done                                 |
-| One-command historical load       | Next (runner takes one season today) |
+| Phase                             | State                                 |
+| --------------------------------- | ------------------------------------- |
+| Setup + DuckLake                  | Done                                  |
+| Bronze ingest (`nfl_*` raw)       | Done                                  |
+| dbt silver (`stg_*`)              | Done                                  |
+| dbt gold (star marts)             | Done                                  |
+| dbt tests (`unique` / `not_null`) | Done                                  |
+| Dagster assets + weekly job       | Done                                  |
+| One-command historical load       | Next (runner takes one season today)  |
 | Live feeds / multi-sport          | Next. Map: `docs/multi-sport-data.md` |
