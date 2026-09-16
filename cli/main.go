@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	_ "github.com/duckdb/duckdb-go/v2"
 )
@@ -25,6 +26,14 @@ func main() {
 
 	if _, ok := goldMarts[*dataMart]; !ok {
 		fmt.Fprintf(os.Stderr, "unknown mart %q\nallowed: dim_game dim_player dim_team fact_player_game fact_team_game\n", *dataMart)
+		os.Exit(1)
+	}
+	out := *dest
+	if out == "" {
+		out = filepath.Join("export", *dataMart+".parquet")
+	}
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
