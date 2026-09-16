@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import os
 import sys
 from pathlib import Path
 
@@ -47,6 +48,12 @@ def ensure_dagster_home() -> Path:
 def setup() -> None:
     require_uv()
     warn_optional_tools()
+    root = Path(".").resolve()
+    env = {
+        **os.environ,
+        "LAKE_CATALOG_PATH": str(root / "lake/metadata.ducklake"),
+        "LAKE_DATA_PATH": str(root / "lake/data"),
+    }
 
     if not Path(".env").exists():
         shutil.copy(".env.example", ".env")
@@ -57,12 +64,28 @@ def setup() -> None:
     subprocess.run(
         ["uv", "run", "python", "-m", "scripts.ingestion_runner"], check=True
     )
+    subprocess.run(
+        [
+            "uv",
+            "run",
+            "dbt",
+            "build",
+            "--project-dir",
+            "statline_dbt",
+            "--profiles-dir",
+            "statline_dbt",
+        ],
+        check=True,
+        env=env,
+    )
 
     print(
-        "Dagster instance dir is ready. Export an absolute DAGSTER_HOME before "
+        "Dagster instance dir is ready. Set an absolute DAGSTER_HOME before "
         "`dagster dev` (it does not read .env):"
     )
-    print(f'  export DAGSTER_HOME="{dagster_home}"')
+    print(f'  bash/zsh: export DAGSTER_HOME="{dagster_home}"')
+    print(f"  fish:     set -x DAGSTER_HOME {dagster_home}")
+    print(f'  nushell:  $env.DAGSTER_HOME = "{dagster_home}"')
     print("  uv run dagster dev -m orchestration.definitions")
 
 
