@@ -80,8 +80,8 @@ def setup() -> None:
     )
 
     print(
-        "Dagster instance dir is ready. Set an absolute DAGSTER_HOME before "
-        "`dagster dev` (it does not read .env):"
+        "Dagster instance dir is ready. Export absolute DAGSTER_HOME in the "
+        "shell before `dagster dev` (not a .env key):"
     )
     print(f'  bash/zsh: export DAGSTER_HOME="{dagster_home}"')
     print(f"  fish:     set -x DAGSTER_HOME {dagster_home}")
