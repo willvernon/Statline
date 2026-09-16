@@ -16,7 +16,7 @@ func main() {
 	// flag.String registers the flag and returns *string.
 	// nothing is read from the command line until Parse().
 	dataMart := flag.String("dataMart", "fact_player_game", "Gold layer data mart to download")
-	dest := flag.String("dest", "~/Downloads/", "Download location of parquet")
+	dest := flag.String("dest", "$HOME/Downloads/", "Download location of parquet file must include file_name.parquet")
 	flag.Parse()
 
 	// after Parse, dereference: *data_mart and *dest are the actual strings.

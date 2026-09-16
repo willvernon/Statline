@@ -93,7 +93,7 @@ notebooks/              # exploration (not the pipeline)
 | Go | [Download Go](https://go.dev/dl/) |
 | DuckDB | [Install DuckDB](https://duckdb.org/install/) |
 
-uv is required for Python deps and `uv run`. Go is required for the gold parquet export CLI (`cli/`). DuckDB CLI is optional for ad-hoc lake queries.
+uv is required for Python deps and `uv run`. Go **1.27.1** (matches `go.work`) is required for the gold parquet export CLI (`cli/`). DuckDB CLI is optional for ad-hoc lake queries, not for the Go export.
 
 ```bash
 git clone <repo>
@@ -176,6 +176,25 @@ Open http://localhost:3000.
 - Bronze assets wrap the existing `load_raw_nfl_*.py` loaders (season config on seasonal tables).
 - Silver/gold come from `dagster-dbt` and the dbt manifest. Groups are `bronze` / `silver` / `gold`.
 - dagster-dbt runs with cwd = `statline_dbt/`. Orchestration makes lake paths absolute and dbt sets `override_data_path` so parquet still lands in the repo `lake/` tree.
+
+### Export gold (Go CLI)
+
+Install Go 1.27.1 from the table above (`go version` to confirm). Gold marts must already exist (`dbt build` or Dagster). Run from **repo root** so `lake/` resolves.
+
+```bash
+go run ./cli -dataMart fact_player_game -dest "$HOME/Downloads/fact_player_game.parquet"
+```
+
+`-dataMart` is a gold table: `fact_player_game` (default), `fact_team_game`, `dim_player`, `dim_team`, `dim_game`.
+
+`-dest` must be a `.parquet` **file**, not a directory. Do not use `~` — Go does not expand it. Use `$HOME` or an absolute path.
+
+```bash
+go build -o statline-export ./cli
+./statline-export -dataMart dim_team -dest "$HOME/Downloads/dim_team.parquet"
+```
+
+**Nushell dest:** `($env.HOME | path join "Downloads" "fact_player_game.parquet")`
 
 ### Query
 
