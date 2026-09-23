@@ -1,12 +1,12 @@
-from dagster import multi_asset, AssetOut, AssetExecutionContext, Config, Output
+from dagster import AssetExecutionContext, AssetOut, Config, Output, multi_asset
 
-from ingestion.load.load_raw_nfl_teams import main as load_teams
-from ingestion.load.load_raw_nfl_players import main as load_players
-from ingestion.load.load_raw_nfl_player_stats import main as load_player_stats
-from ingestion.load.load_raw_nfl_team_stats import main as load_team_stats
-from ingestion.load.load_raw_nfl_schedules import main as load_schedules
-from ingestion.load.load_raw_nfl_rosters import main as load_rosters
 from ingestion.load.load_raw_nfl_draft_picks import main as load_draft_picks
+from ingestion.load.load_raw_nfl_player_stats import main as load_player_stats
+from ingestion.load.load_raw_nfl_players import main as load_players
+from ingestion.load.load_raw_nfl_rosters import main as load_rosters
+from ingestion.load.load_raw_nfl_schedules import main as load_schedules
+from ingestion.load.load_raw_nfl_team_stats import main as load_team_stats
+from ingestion.load.load_raw_nfl_teams import main as load_teams
 
 
 class SeasonConfig(Config):

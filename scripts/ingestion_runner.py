@@ -9,6 +9,22 @@ from ingestion.load.load_raw_nfl_team_stats import main as load_team_stats
 from ingestion.load.load_raw_nfl_teams import main as load_teams
 
 
+def _run(load, *args) -> str | None:
+    """Run one loader. Return its module name when it fails.
+
+    Loaders raise whatever the source or lake throws. Catching Exception
+    here is deliberate so a later loader still runs.
+    """
+    name = load.__module__
+    try:
+        load(*args)
+    except Exception as exc:  # noqa: BLE001
+        print(f"FAILED {name}: {exc}")
+        return name
+    print(f"OK {name}")
+    return None
+
+
 def main(season: int | None = None) -> None:
     """Run all raw loaders.
 
@@ -28,24 +44,12 @@ def main(season: int | None = None) -> None:
     ]
 
     failed: list[str] = []
-
     for load in seasonal:
-        name = load.__module__
-        try:
-            load(season)
-            print(f"OK {name}")
-        except Exception as e:
-            print(f"FAILED {name}: {e}")
-            failed.append(name)
-
+        if failure := _run(load, season):
+            failed.append(failure)
     for load in snapshots:
-        name = load.__module__
-        try:
-            load()
-            print(f"OK {name}")
-        except Exception as e:
-            print(f"FAILED {name}: {e}")
-            failed.append(name)
+        if failure := _run(load):
+            failed.append(failure)
 
     if failed:
         print(f"Done with {len(failed)} failure(s): {failed}")
