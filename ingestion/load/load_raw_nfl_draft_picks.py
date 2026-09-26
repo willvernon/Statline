@@ -18,7 +18,7 @@ def main(season: int | None = None) -> None:
         if new_cols:
             source_types = {
                 name: typ
-                for name, typ, *_ in conn.sql(f"DESCRIBE draft_picks").fetchall()
+                for name, typ, *_ in conn.sql("DESCRIBE draft_picks").fetchall()
             }
             for col in new_cols:
                 print(f"new cols: adding {col}")

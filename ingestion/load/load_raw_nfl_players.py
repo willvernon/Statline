@@ -15,7 +15,7 @@ def main() -> None:
         new_cols = set(source_cols - lake_cols)
         if new_cols:
             source_types = {
-                name: typ for name, typ, *_ in conn.sql(f"DESCRIBE players").fetchall()
+                name: typ for name, typ, *_ in conn.sql("DESCRIBE players").fetchall()
             }
             for col in new_cols:
                 print(f"new cols: adding {col}")

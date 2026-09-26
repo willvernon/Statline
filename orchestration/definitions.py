@@ -1,7 +1,7 @@
 from dagster import (
-    Definitions,
     AssetSelection,
     DefaultScheduleStatus,
+    Definitions,
     ScheduleDefinition,
     define_asset_job,
 )
@@ -12,8 +12,8 @@ from orchestration.resources.paths import normalize_lake_env
 
 normalize_lake_env()
 
+from orchestration.assets.dbt_project import DBT_PROJECT_DIR, statline_dbt_assets
 from orchestration.assets.raw import raw_nfl
-from orchestration.assets.dbt_project import statline_dbt_assets, DBT_PROJECT_DIR
 
 nfl_weekly_job = define_asset_job(
     name="nfl_weekly_refresh",

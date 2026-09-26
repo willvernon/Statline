@@ -1,10 +1,9 @@
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 import duckdb
 from dotenv import load_dotenv
-from contextlib import contextmanager
-
 
 SCHEMA_PATH = Path(__file__).parent / 'schemas' / 'Statline_Schema.sql'
 

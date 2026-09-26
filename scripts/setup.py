@@ -48,7 +48,7 @@ def ensure_dagster_home() -> Path:
 def setup() -> None:
     require_uv()
     warn_optional_tools()
-    root = Path(".").resolve()
+    root = Path.cwd()
     env = {
         **os.environ,
         "LAKE_CATALOG_PATH": str(root / "lake/metadata.ducklake"),
