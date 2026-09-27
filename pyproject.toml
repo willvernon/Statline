@@ -12,6 +12,7 @@ description = "Local NFL lakehouse: nflreadpy → DuckLake → dbt star schema �
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "boto3>=1.43.103",
     "dagster>=1.13.15",
     "dagster-dbt>=0.29.15",
     "dagster-webserver>=1.13.15",
