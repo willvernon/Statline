@@ -155,8 +155,8 @@ Target pattern for Python loaders (`ingestion/load/load_raw_nfl_*.py`):
 - Inserts: prefer explicit columns or `INSERT ... BY NAME` — never fragile positional-only maps
 - Run from repo root: `uv run python ingestion/load/<script>.py` or
   `uv run python scripts/ingestion-runner.py`
-- Season-scoped loaders currently default to `nflreadpy.get_current_season()`; parameterized
-  historical backfill UX is a known follow-up
+- Season-scoped loaders default to `nflreadpy.get_current_season()`; `ingestion_runner.py` takes
+  one season as an argument. A multi-season (2000–2024) backfill command is a known follow-up
 
 ## Environment & dependencies
 
@@ -220,10 +220,12 @@ Target pattern for Python loaders (`ingestion/load/load_raw_nfl_*.py`):
 | dbt silver (`stg_*`) | Done |
 | dbt gold (star marts) | Done |
 | Dagster (local assets) | Done |
-| Loader season params / backfill UX | Next |
+| Loader season param (one season per run) | Done |
+| Multi-season backfill command | Next |
 | Live feeds / multi-sport | Later |
 
-- Linear: Portfolio project, parent epic `DARKO-86`, phase sub-issues in sequence
+- Linear: project **NFL Statline** (team Side Projects, `SIDE-*`). Portfolio polish epic `SIDE-46`;
+  R2 / Power BI serving layer `SIDE-52`. Planning lives in Linear; `todo.md` is local and gitignored
 - Repo: `github.com/willvernon/statline`
 - Scope first: historical NFL ~2000–2024; live in-season ingestion deferred
 
