@@ -1,19 +1,69 @@
 # Statline
 
-Statline is a local NFL data lakehouse. Public box scores, schedules, rosters, and draft picks land in DuckLake, are cleaned and tested in dbt, and are orchestrated in Dagster as a bronze → silver → gold pipeline. The gold layer is a star schema built for analysis and a downstream sports app.
+Local NFL lakehouse. Public box scores, schedules, rosters, and draft picks land in DuckLake, are cleaned and tested in dbt, and run in Dagster as bronze → silver → gold. Gold is a star schema for analysis and a downstream sports app.
 
-**Built:** bronze ingest, silver staging, gold marts, local Dagster assets + `nfl_weekly_refresh`  
-**Not built:** live game feeds, multi-sport, one-command 2000-2024 backfill
+**Built:** bronze ingest, silver staging, gold marts, local Dagster assets, `nfl_weekly_refresh`  
+**Ahead:** live game feeds, multi-sport, a one-command 2000–2024 backfill
 
-The weekly job is local, not a hosted always-on scheduler. A fresh clone cannot yet backfill 2000–2024 on its own.
+The Tuesday job runs while local `dagster dev` is up. A fresh clone loads the current season. Older seasons are one year per command.
+
+## Quick start
+
+Python ≥ 3.13 and [uv](https://docs.astral.sh/uv/getting-started/installation/). [Go 1.27.1](https://go.dev/dl/) (matches `go.work`) is for the parquet export. The [DuckDB CLI](https://duckdb.org/install/) is for ad-hoc queries. Bootstrap needs uv only.
+
+From the repo root:
+
+```bash
+git clone https://github.com/willvernon/Statline.git
+cd Statline
+uv run python scripts/setup.py
+```
+
+`scripts/setup.py` copies `.env` from `.env.example`, creates `.dagster_home`, inits DuckLake, loads **current-season** bronze, and `dbt build`s silver and gold. It prints the `DAGSTER_HOME` export for your shell. Missing `uv` exits with the download links above.
+
+Open Dagster:
+
+```bash
+export DAGSTER_HOME="$PWD/.dagster_home"
+uv run dagster dev -m orchestration.definitions
+```
+
+http://localhost:3000 — materialize the graph, or launch `nfl_weekly_refresh`.
+
+| Shell    | `DAGSTER_HOME`                                              |
+| -------- | ----------------------------------------------------------- |
+| bash/zsh | `export DAGSTER_HOME="$PWD/.dagster_home"`                  |
+| fish     | `set -x DAGSTER_HOME (pwd)/.dagster_home`                   |
+| nushell  | `$env.DAGSTER_HOME = ($env.PWD \| path join ".dagster_home")` |
+
+`DAGSTER_HOME` is a shell export (absolute path). Leave it unset and each `dagster dev` gets a fresh `.tmp_dagster_home_*`. `.env` holds lake paths only, relative to the repo root:
+
+```bash
+LAKE_CATALOG_PATH=lake/metadata.ducklake
+LAKE_DATA_PATH=lake/data
+```
+
+Run commands from the repo root. Python loaders and Dagster read `.env`. A hand-run `dbt` needs the same paths exported (`set -a && source .env && set +a`). Setup already exports them for its own `dbt build`.
+
+Load another season, rebuild, or copy one gold mart out:
+
+```bash
+uv run python scripts/ingestion_runner.py 2024
+uv run dbt build --project-dir statline_dbt --profiles-dir statline_dbt
+go run ./cli -dataMart fact_player_game -dest "$HOME/Downloads/fact_player_game.parquet"
+```
+
+A year reloads that season for stats, schedules, rosters, and draft. Teams and players are full snapshots. `-dest` is a `.parquet` file; use `$HOME` or an absolute path.
+
+Step-by-step, without `setup.py`: `uv sync`, `cp .env.example .env`, then [Run](#run).
 
 ## Why this exists
 
-During the NFL season I was re-extracting and reshaping the same public data every week for models, analysis, and a sports app. That work belongs in a pipeline so the data is already clean and queryable. Statline is also the project I walk through for Data Engineer roles in Indianapolis, Chicago, and Austin.
+Each NFL week I was re-extracting and reshaping the same public data for models, analysis, and a sports app. Statline keeps that data clean and queryable. It is also the project I walk through for Data Engineer roles in Indianapolis, Chicago, and Austin.
 
-## Stack (and the pivot)
+## Stack
 
-Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport and about 25 seasons of box scores. Distributed compute was solving a problem I don't have, so I pivoted to fully local.
+Originally scoped for Databricks + Unity Catalog + Delta. One sport and about 25 seasons of box scores does not need distributed compute, so the stack is fully local.
 
 | Piece         | Choice                           |
 | ------------- | -------------------------------- |
@@ -30,23 +80,19 @@ Originally scoped for Databricks + Unity Catalog + Delta. The data is one sport 
 nflreadpy → Python load → lake.raw (bronze)
                        → dbt stg_* (silver)
                        → dbt dim_* / fact_* (gold)
-                       → notebooks / sports app (non-live)
+                       → notebooks / sports app
 
          Dagster: bronze → silver → gold
-         job: nfl_weekly_refresh (manual launch or the Tuesday schedule)
+         job: nfl_weekly_refresh
 ```
 
-| Layer  | Schema / objects                   | Owner                                             |
-| ------ | ---------------------------------- | ------------------------------------------------- |
-| Bronze | `lake.raw.nfl_*`                   | Python loaders. Source-shaped, no star renames.   |
-| Silver | `lake.main_staging.stg_*`          | dbt views. Clean, rename, key filters.            |
-| Gold   | `lake.main_marts.dim_*` / `fact_*` | dbt tables. Star schema for app + shared metrics. |
+| Layer  | Schema / objects                   | Owner                                            |
+| ------ | ---------------------------------- | ------------------------------------------------ |
+| Bronze | `lake.raw.nfl_*`                   | Python loaders. Source-shaped, no star renames. |
+| Silver | `lake.main_staging.stg_*`          | dbt views. Clean, rename, key filters.           |
+| Gold   | `lake.main_marts.dim_*` / `fact_*` | dbt tables. Star schema for app + shared metrics.|
 
-dbt prefixes custom schemas with the target schema (`main`), so you see `main_staging` / `main_marts` instead of bare `staging` / `marts`. Same idea as `raw`.
-
-### Asset graph (Dagster)
-
-Medallion groups in the local UI: bronze raw loaders, silver staging, gold marts.
+dbt prefixes custom schemas with the target schema (`main`), so the names are `main_staging` and `main_marts`.
 
 ![Dagster asset graph: bronze, silver, gold](docs/images/dagster-asset-graph.svg)
 
@@ -63,7 +109,7 @@ Medallion groups in the local UI: bronze raw loaders, silver staging, gold marts
 - `dim_team`: natural key `team_abbr`
 - `dim_game`: natural key `game_id`
 
-Rosters and draft picks live in silver only for now.
+Rosters and draft picks stay in silver for now.
 
 ## Repo layout
 
@@ -83,88 +129,39 @@ lake/                   # local catalog + parquet (gitignored)
 notebooks/              # exploration (not the pipeline)
 ```
 
-## Setup
-
-**Requirements:** Python ≥ 3.13, plus these CLIs:
-
-| Tool   | Download                                                              |
-| ------ | --------------------------------------------------------------------- |
-| uv     | [Install uv](https://docs.astral.sh/uv/getting-started/installation/) |
-| Go     | [Download Go](https://go.dev/dl/)                                     |
-| DuckDB | [Install DuckDB](https://duckdb.org/install/)                         |
-
-uv is required for Python deps and `uv run`. Go **1.27.1** (matches `go.work`) is required for the gold parquet export CLI (`cli/`). DuckDB CLI is optional for ad-hoc lake queries, not for the Go export.
-
-From **repo root**:
-
-```bash
-git clone <repo>
-cd Statline
-uv run python scripts/setup.py
-```
-
-`scripts/setup.py` exits if `uv` is missing (prints the download table). It copies `.env` from `.env.example` if needed, creates `.dagster_home`, inits DuckLake, loads **current-season** bronze, and `dbt build`s silver + gold. Then it prints the absolute `DAGSTER_HOME` export for `dagster dev`. Go is not required for that bootstrap — use it after gold exists ([Export gold (Go CLI)](#export-gold-go-cli)).
-
-To skip the load and do steps by hand: `uv sync`, `cp .env.example .env`, then the Run section below.
-
-`.env` (from `.env.example`):
-
-```bash
-LAKE_CATALOG_PATH=lake/metadata.ducklake
-LAKE_DATA_PATH=lake/data
-```
-
-Paths are **relative to the repo root**. Always run from the repo root, not from `statline_dbt/`. The catalog stores the data path as `lake/data/`.
-
-Python loaders (and Dagster's code location) read `.env` for `LAKE_*`. **dbt CLI does not** — export lake paths for a hand-run `dbt`. `DAGSTER_HOME` is not a `.env` key; export it in the shell before `dagster dev`. `scripts/setup.py` already exports lake paths for its own `dbt build`.
-
 ## Run
 
-Skip this section if you already ran `scripts/setup.py` — it inits the lake, loads current-season bronze, and builds dbt. The commands below are the same steps, one at a time.
+Same work as `scripts/setup.py`, one command at a time. Repo root.
 
-### Initialize empty lake (first time)
+### Initialize the lake
 
 ```bash
 uv run python -m ingestion.ducklake
 ```
 
-### Load raw (bronze)
+### Load bronze
 
 ```bash
-# current season (nflreadpy.get_current_season() on season-scoped tables)
-uv run python scripts/ingestion_runner.py
-
-# one season
-uv run python scripts/ingestion_runner.py 2024
-
-# or one table (current-season default; no CLI year on the individual loaders)
-uv run python ingestion/load/load_raw_nfl_teams.py
+uv run python scripts/ingestion_runner.py            # current season
+uv run python scripts/ingestion_runner.py 2024       # one season
+uv run python ingestion/load/load_raw_nfl_teams.py   # one table; current season
 ```
 
-A year on the runner reloads that season for stats, schedules, rosters, and draft. Teams and players are full snapshots. There is no loop for 2000-2024, so a fresh clone does not reproduce the full history in one command.
+Individual loaders have no year flag. There is no 2000–2024 loop.
 
 ### Transform (silver + gold)
 
-Export lake paths first, then:
-
 ```bash
-export LAKE_CATALOG_PATH=lake/metadata.ducklake
-export LAKE_DATA_PATH=lake/data
-# or: set -a && source .env && set +a
-
+set -a && source .env && set +a
 uv run dbt debug --project-dir statline_dbt --profiles-dir statline_dbt
 uv run dbt build --project-dir statline_dbt --profiles-dir statline_dbt
 ```
 
-**Fish:** `set -x LAKE_CATALOG_PATH lake/metadata.ducklake` and `set -x LAKE_DATA_PATH lake/data`.
+Fish: `set -x LAKE_CATALOG_PATH lake/metadata.ducklake` and `set -x LAKE_DATA_PATH lake/data`.
 
-Silver and gold models declare `unique` and `not_null` tests on keys in `statline_dbt/models/*/schema.yml`. `dbt build` runs them when the lake exists.
+`dbt build` runs the `unique` and `not_null` key tests in `statline_dbt/models/*/schema.yml`. `statline_dbt/profiles.yml` sets `threads: 1`. Parallel materializations were flaky against local DuckLake.
 
-`statline_dbt/profiles.yml` uses `threads: 1`. Parallel dbt materializations were flaky against local DuckLake. Single-thread is the path that actually works for a demo.
-
-### Orchestrate (Dagster, local)
-
-From **repo root**. Lake paths come from `.env` when the code location loads. `DAGSTER_HOME` is a shell export (absolute path), not `.env` — unset means a fresh `.tmp_dagster_home_*` every start.
+### Orchestrate (Dagster)
 
 ```bash
 mkdir -p .dagster_home
@@ -172,43 +169,36 @@ export DAGSTER_HOME="$PWD/.dagster_home"
 uv run dagster dev -m orchestration.definitions
 ```
 
-**zsh:** `mkdir -p .dagster_home; export DAGSTER_HOME="$PWD/.dagster_home"`  
-**Fish:** `mkdir -p .dagster_home; set -x DAGSTER_HOME (pwd)/.dagster_home`  
-**Nushell:** `mkdir .dagster_home; $env.DAGSTER_HOME = ($env.PWD | path join ".dagster_home")`
+Fish: `set -x DAGSTER_HOME (pwd)/.dagster_home`  
+Nushell: `$env.DAGSTER_HOME = ($env.PWD | path join ".dagster_home")`
 
-Open http://localhost:3000.
-
-- Materialize bronze (`raw/*`), then silver/gold, or launch the `nfl_weekly_refresh` job (same graph).
-- Schedule `nfl_weekly_schedule` is in `orchestration/definitions.py` (Tue 8am Indianapolis). It starts Stopped. Enable it in Automation if you want the Tuesday tick. Nothing fires unless this process is running.
-- Bronze assets wrap the existing `load_raw_nfl_*.py` loaders (season config on seasonal tables).
-- Silver/gold come from `dagster-dbt` and the dbt manifest. Groups are `bronze` / `silver` / `gold`.
-- dagster-dbt runs with cwd = `statline_dbt/`. Orchestration makes lake paths absolute and dbt sets `override_data_path` so parquet still lands in the repo `lake/` tree.
+- Launch `nfl_weekly_refresh`, or materialize bronze (`raw/*`) then silver/gold. Same graph.
+- `nfl_weekly_schedule` (Tue 8am Indianapolis, `orchestration/definitions.py`) starts Stopped. Turn it on under Automation. It fires only while this process is running.
+- Bronze assets call `load_raw_nfl_*.py`. Silver and gold come from `dagster-dbt` (groups `bronze` / `silver` / `gold`). dbt’s cwd is `statline_dbt/`; orchestration makes lake paths absolute and sets `override_data_path` so parquet stays under repo `lake/`.
 
 ### Export gold (Go CLI)
 
-Install Go 1.27.1 from the table above (`go version` to confirm). Gold marts must already exist (`scripts/setup.py`, `dbt build`, or Dagster). Run from **repo root** so `lake/` resolves. This attaches the local lake and `COPY`s one mart to parquet — it is not ingest.
+Gold marts already exist (`scripts/setup.py`, `dbt build`, or Dagster). From the repo root, Go 1.27.1 attaches the local lake and `COPY`s one mart to parquet.
 
 ```bash
 go run ./cli -dataMart fact_player_game -dest "$HOME/Downloads/fact_player_game.parquet"
 ```
 
-`-dataMart` is a gold table: `fact_player_game` (default), `fact_team_game`, `dim_player`, `dim_team`, `dim_game`.
-
-`-dest` must be a `.parquet` **file**, not a directory. Do not use `~` — Go does not expand it. Use `$HOME` or an absolute path.
+`-dataMart`: `fact_player_game` (default), `fact_team_game`, `dim_player`, `dim_team`, `dim_game`.
 
 ```bash
 go build -o statline-export ./cli
 ./statline-export -dataMart dim_team -dest "$HOME/Downloads/dim_team.parquet"
 ```
 
-**Nushell dest:** `($env.HOME | path join "Downloads" "fact_player_game.parquet")`
+Nushell dest: `($env.HOME | path join "Downloads" "fact_player_game.parquet")`
 
 ### Query
 
 Attach the same lake (DuckDB CLI, notebook, or app):
 
-- Exploration / flexible analysis: `main_staging.stg_*`
-- App + official metrics: `main_marts.dim_*` / `fact_*`
+- Exploration: `main_staging.stg_*`
+- App and shared metrics: `main_marts.dim_*` / `fact_*`
 
 ## Development notes
 
@@ -220,13 +210,13 @@ Attach the same lake (DuckDB CLI, notebook, or app):
 
 ## Status
 
-| Phase                             | State                                 |
-| --------------------------------- | ------------------------------------- |
-| Setup + DuckLake                  | Done                                  |
-| Bronze ingest (`nfl_*` raw)       | Done                                  |
-| dbt silver (`stg_*`)              | Done                                  |
-| dbt gold (star marts)             | Done                                  |
-| dbt tests (`unique` / `not_null`) | Done                                  |
-| Dagster assets + weekly job       | Done                                  |
-| One-command historical load       | Next (runner takes one season today)  |
+| Phase                             | State                                |
+| --------------------------------- | ------------------------------------ |
+| Setup + DuckLake                  | Done                                 |
+| Bronze ingest (`nfl_*` raw)       | Done                                 |
+| dbt silver (`stg_*`)              | Done                                 |
+| dbt gold (star marts)             | Done                                 |
+| dbt tests (`unique` / `not_null`) | Done                                 |
+| Dagster assets + weekly job       | Done                                 |
+| One-command historical load       | Next (runner takes one season today) |
 | Live feeds / multi-sport          | Next. Map: `docs/multi-sport-data.md` |

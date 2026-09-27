@@ -3,9 +3,6 @@ statline-export
 .dagster_home/
 .tmp_dagster_home_*/
 devlog/
-todo.md
-TODO.md
-todo/
 
 lake/
 *.ducklake
@@ -253,7 +250,6 @@ __marimo__/
 # Local secrets / tooling configs (not part of the project)
 .streamlit/secrets.toml
 CLAUDE.md
-AGENTS.md
 workbench/
 .grok/
 .claude/settings.local.json
