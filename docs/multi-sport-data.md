@@ -1,6 +1,6 @@
 # Multi-sport data: sources, pipelines, schema
 
-Statline is one lake and one Dagster project. That should stay true when more sports show up. What should not stay true is one star that tries to hold passing yards and batting average in the same fact table.
+Statline is one lake and one Prefect project. That should stay true when more sports show up. What should not stay true is one star that tries to hold passing yards and batting average in the same fact table.
 
 This note is a map. No code changes.
 
@@ -50,11 +50,11 @@ College and pro that share a ball do not share a table. CFB is not "NFL with ext
 
 One runtime. Six extractors.
 
-Share DuckLake, the dbt project, the Dagster code location, env, and the season-partitioned load convention.
+Share DuckLake, the dbt project, the Prefect package, env, and the season-partitioned load convention.
 
-Split the Python client, raw DDL, staging models, gold facts, Dagster asset group, and refresh cadence.
+Split the Python client, raw DDL, staging models, gold facts, Prefect flow, and refresh cadence.
 
-If NFL ingest fails, NBA should still run. That is the test. A `raw_nfl`-style multi_asset per league is enough. Do not make six repos or six dbt projects.
+If NFL ingest fails, NBA should still run. That is the test. One weekly flow per league is enough. Do not make six repos or six dbt projects.
 
 Cadence is why this cannot be one linear job:
 
@@ -133,7 +133,7 @@ Gold dims stay league-local. Prefer dbt `+schema` per league folder so NFL can k
 
 ## Direct answers
 
-**Do they need their own pipelines?** Their own extractors, DDL, and models. Not their own lake, dbt project, or Dagster deployment.
+**Do they need their own pipelines?** Their own extractors, DDL, and models. Not their own lake, dbt project, or Prefect deployment.
 
 **Best schema for all of this in the same pipeline?** Source-shaped bronze, league-prefixed silver, one star per league at gold, plus a tiny core of ID maps. Not one star. Not EAV.
 

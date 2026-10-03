@@ -8,24 +8,18 @@ packages = ['ingestion', 'orchestration']
 [project]
 name = "statline"
 version = "0.1.0"
-description = "Local NFL lakehouse: nflreadpy → DuckLake → dbt star schema → Dagster"
+description = "Local NFL lakehouse: nflreadpy → DuckLake → dbt star schema → Prefect"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "dagster>=1.13.15",
-    "dagster-dbt>=0.29.15",
-    "dagster-duckdb>=0.29.15",
-    "dagster-webserver>=1.13.15",
     "dbt-duckdb>=1.10.1",
     "duckdb>=1.5.3",
     "nflreadpy>=0.1.5",
     "numpy>=2.4.6",
     "pandas>=3.0.3",
+    "prefect>=3.8.7",
     "pyarrow>=24.0.0",
     "python-dotenv>=1.2.2",
     "requests>=2.34.2",
 ]
-
-[tool.dagster]
-module_name = "orchestration.definitions"
 

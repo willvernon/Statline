@@ -32,7 +32,7 @@ of the portfolio story.
 | Load | Python → DuckLake (`lake.raw`) |
 | Storage | DuckLake (SQL catalog + Parquet, fully local) |
 | Transform | dbt + `dbt-duckdb` (`statline_dbt/`) |
-| Orchestration | Dagster local |
+| Orchestration | Prefect local (`orchestration/weekly.py`) |
 | Env | uv + `pyproject.toml` / `uv.lock` |
 
 ```
@@ -171,9 +171,10 @@ Target pattern for Python loaders (`ingestion/load/load_raw_nfl_*.py`):
   run ingest and dbt from the repo root. Catalog stores data path as `lake/data/`; wrong cwd breaks
   attach.
 - dbt does not load `.env` itself — export `LAKE_*` into the shell session (see README).
-- **Dagster / dagster-dbt:** dbt subprocess cwd is `statline_dbt/`. `orchestration.resources.paths`
-  absolutizes lake env; `profiles.yml` sets `override_data_path: true` so absolute `DATA_PATH`
-  works against a catalog that still records `lake/data/`.
+- **Prefect / dbt:** `orchestration/weekly.py` runs `dbt build` in a subprocess from the repo
+  root. `orchestration.resources.paths` absolutizes lake env first; `profiles.yml` sets
+  `override_data_path: true` so absolute `DATA_PATH` works against a catalog that still
+  records `lake/data/`.
 
 ## Running the pieces
 
@@ -183,8 +184,9 @@ Target pattern for Python loaders (`ingestion/load/load_raw_nfl_*.py`):
 - **dbt:** from repo root —
   `uv run dbt build --project-dir statline_dbt --profiles-dir statline_dbt`
   (`threads: 1` in `profiles.yml` — parallel materializations were flaky on local DuckLake)
-- **Orchestration:** `uv run dagster dev -m orchestration.definitions` from repo root with
-  `DAGSTER_HOME` + `LAKE_*` set (see README)
+- **Orchestration:** `uv run python -m orchestration.weekly` from repo root (one shot).
+  Clock: `uv run prefect server start`, then `uv run python -m orchestration.weekly --serve`.
+  Schedule `tuesday-8am` is created paused (see README)
 - **Query:** attach same lake; explore `main_staging.stg_*`; app/official metrics from
   `main_marts.dim_*` / `fact_*`
 
@@ -219,7 +221,7 @@ Target pattern for Python loaders (`ingestion/load/load_raw_nfl_*.py`):
 | Bronze ingest (`nfl_*` raw) | Done |
 | dbt silver (`stg_*`) | Done |
 | dbt gold (star marts) | Done |
-| Dagster (local assets) | Done |
+| Prefect flow `nfl_weekly_refresh` | Done |
 | Loader season params / backfill UX | Next |
 | Live feeds / multi-sport | Later |
 
@@ -240,7 +242,7 @@ Target pattern for Python loaders (`ingestion/load/load_raw_nfl_*.py`):
 
 ## Flag if you notice drift
 
-- README status vs reality (bronze/silver/gold, Dagster)
+- README status vs reality (bronze/silver/gold, Prefect)
 - `.gitignore` missing essential entries
 - Storage called Delta Lake instead of DuckLake
 - Python ingest doing dbt's job (joins, star renames, `dim_*`/`fact_*` loads)

@@ -1,11 +1,11 @@
 # Statline
 
-Local NFL lakehouse. Public box scores, schedules, rosters, and draft picks land in DuckLake, are cleaned and tested in dbt, and run in Dagster as bronze → silver → gold. Gold is a star schema for analysis and a downstream sports app.
+Local NFL lakehouse. Public box scores, schedules, rosters, and draft picks land in DuckLake, are cleaned and tested in dbt, and run on a Prefect flow as bronze → silver → gold. Gold is a star schema for analysis and a downstream sports app.
 
-**Built:** bronze ingest, silver staging, gold marts, local Dagster assets, `nfl_weekly_refresh`  
+**Built:** bronze ingest, silver staging, gold marts, local Prefect flow `nfl_weekly_refresh`  
 **Ahead:** live game feeds, multi-sport, a one-command 2000–2024 backfill
 
-The Tuesday job runs while local `dagster dev` is up. A fresh clone loads the current season. Older seasons are one year per command.
+The Tuesday run fires only while `python -m orchestration.weekly --serve` is up. A fresh clone loads the current season. Older seasons are one year per command.
 
 ## Quick start
 
@@ -19,31 +19,31 @@ cd Statline
 uv run python scripts/setup.py
 ```
 
-`scripts/setup.py` copies `.env` from `.env.example`, creates `.dagster_home`, inits DuckLake, loads **current-season** bronze, and `dbt build`s silver and gold. It prints the `DAGSTER_HOME` export for your shell. Missing `uv` exits with the download links above.
+`scripts/setup.py` copies `.env` from `.env.example`, inits DuckLake, loads **current-season** bronze, and `dbt build`s silver and gold. Missing `uv` exits with the download links above.
 
-Open Dagster:
+Run the weekly flow once:
 
 ```bash
-export DAGSTER_HOME="$PWD/.dagster_home"
-uv run dagster dev -m orchestration.definitions
+uv run python -m orchestration.weekly
 ```
 
-http://localhost:3000 — materialize the graph, or launch `nfl_weekly_refresh`.
+That loads the current season and runs `dbt build`. Pass a year to reload that season: `uv run python -m orchestration.weekly 2024`.
 
-| Shell    | `DAGSTER_HOME`                                              |
-| -------- | ----------------------------------------------------------- |
-| bash/zsh | `export DAGSTER_HOME="$PWD/.dagster_home"`                  |
-| fish     | `set -x DAGSTER_HOME (pwd)/.dagster_home`                   |
-| nushell  | `$env.DAGSTER_HOME = ($env.PWD \| path join ".dagster_home")` |
+The clock is separate, and the Tuesday schedule is created paused. UI: http://127.0.0.1:4200
 
-`DAGSTER_HOME` is a shell export (absolute path). Leave it unset and each `dagster dev` gets a fresh `.tmp_dagster_home_*`. `.env` holds lake paths only, relative to the repo root:
+```bash
+uv run prefect server start
+uv run python -m orchestration.weekly --serve
+```
+
+Unpause `tuesday-8am` in the UI when you want it. The run fires only while the `--serve` process is up. `.env` holds lake paths only, relative to the repo root:
 
 ```bash
 LAKE_CATALOG_PATH=lake/metadata.ducklake
 LAKE_DATA_PATH=lake/data
 ```
 
-Run commands from the repo root. Python loaders and Dagster read `.env`. A hand-run `dbt` needs the same paths exported (`set -a && source .env && set +a`). Setup already exports them for its own `dbt build`.
+Run commands from the repo root. Python loaders and the weekly flow read `.env`. A hand-run `dbt` needs the same paths exported (`set -a && source .env && set +a`). Setup already exports them for its own `dbt build`.
 
 Load another season, rebuild, or copy one gold mart out:
 
@@ -71,7 +71,7 @@ Originally scoped for Databricks + Unity Catalog + Delta. One sport and about 25
 | Load          | Python → DuckLake (`lake.raw`)   |
 | Storage       | DuckLake (SQL catalog + Parquet) |
 | Transform     | dbt + `dbt-duckdb`               |
-| Orchestration | Dagster (local job + schedule)   |
+| Orchestration | Prefect (local flow + paused schedule) |
 | Env           | `uv` + `pyproject.toml`          |
 
 ## Pipeline
@@ -82,8 +82,8 @@ nflreadpy → Python load → lake.raw (bronze)
                        → dbt dim_* / fact_* (gold)
                        → notebooks / sports app
 
-         Dagster: bronze → silver → gold
-         job: nfl_weekly_refresh
+         Prefect flow nfl_weekly_refresh:
+           bronze loaders → dbt build (silver + gold)
 ```
 
 | Layer  | Schema / objects                   | Owner                                            |
@@ -93,8 +93,6 @@ nflreadpy → Python load → lake.raw (bronze)
 | Gold   | `lake.main_marts.dim_*` / `fact_*` | dbt tables. Star schema for app + shared metrics.|
 
 dbt prefixes custom schemas with the target schema (`main`), so the names are `main_staging` and `main_marts`.
-
-![Dagster asset graph: bronze, silver, gold](docs/images/dagster-asset-graph.svg)
 
 ## Data model (gold)
 
@@ -117,8 +115,8 @@ Rosters and draft picks stay in silver for now.
 ingestion/              # DuckLake connect + raw loaders
   load/                 # load_raw_nfl_*.py
   schemas/              # DDL for lake.raw
-orchestration/          # Dagster definitions + assets
-  assets/               # raw multi-asset, dagster-dbt
+orchestration/          # Prefect flow
+  weekly.py             # nfl_weekly_refresh
   resources/            # lake path normalization
 scripts/                # setup.py (clone bootstrap), ingestion_runner.py
 cli/                    # Go CLI: COPY gold marts to parquet
@@ -161,24 +159,29 @@ Fish: `set -x LAKE_CATALOG_PATH lake/metadata.ducklake` and `set -x LAKE_DATA_PA
 
 `dbt build` runs the `unique` and `not_null` key tests in `statline_dbt/models/*/schema.yml`. `statline_dbt/profiles.yml` sets `threads: 1`. Parallel materializations were flaky against local DuckLake.
 
-### Orchestrate (Dagster)
+### Orchestrate (Prefect)
 
 ```bash
-mkdir -p .dagster_home
-export DAGSTER_HOME="$PWD/.dagster_home"
-uv run dagster dev -m orchestration.definitions
+uv run python -m orchestration.weekly          # current season, one shot
+uv run python -m orchestration.weekly 2024     # that season, one shot
 ```
 
-Fish: `set -x DAGSTER_HOME (pwd)/.dagster_home`  
-Nushell: `$env.DAGSTER_HOME = ($env.PWD | path join ".dagster_home")`
+Nushell is the same command. The flow calls the seven bronze loaders, then `dbt build`.
 
-- Launch `nfl_weekly_refresh`, or materialize bronze (`raw/*`) then silver/gold. Same graph.
-- `nfl_weekly_schedule` (Tue 8am Indianapolis, `orchestration/definitions.py`) starts Stopped. Turn it on under Automation. It fires only while this process is running.
-- Bronze assets call `load_raw_nfl_*.py`. Silver and gold come from `dagster-dbt` (groups `bronze` / `silver` / `gold`). dbt’s cwd is `statline_dbt/`; orchestration makes lake paths absolute and sets `override_data_path` so parquet stays under repo `lake/`.
+The clock needs two terminals:
+
+```bash
+uv run prefect server start
+uv run python -m orchestration.weekly --serve
+```
+
+- Deployment name: `nfl_weekly_refresh`. Schedule slug `tuesday-8am` is Tue 8am Indianapolis, created paused. Unpause it in the UI at http://127.0.0.1:4200.
+- It fires only while the `--serve` process is running. Stopping that process pauses the schedule.
+- The flow makes lake paths absolute before `dbt build` and `profiles.yml` sets `override_data_path`, so parquet stays under repo `lake/`.
 
 ### Export gold (Go CLI)
 
-Gold marts already exist (`scripts/setup.py`, `dbt build`, or Dagster). From the repo root, Go 1.27.1 attaches the local lake and `COPY`s one mart to parquet.
+Gold marts already exist (`scripts/setup.py`, `dbt build`, or the weekly flow). From the repo root, Go 1.27.1 attaches the local lake and `COPY`s one mart to parquet.
 
 ```bash
 go run ./cli -dataMart fact_player_game -dest "$HOME/Downloads/fact_player_game.parquet"
@@ -204,7 +207,7 @@ Attach the same lake (DuckDB CLI, notebook, or app):
 
 - **uv only** for Python deps. No global `pip install`.
 - **Feature branches + PRs** even solo. `main` stays merge-only.
-- **Never commit** `.env`, `lake/`, `*.duckdb`, dbt `target/`, `.dagster_home/`
+- **Never commit** `.env`, `lake/`, `*.duckdb`, dbt `target/`, `.dagster_home/`, `.prefect/`
 - Running notes live in `devlog/` (local, gitignored)
 - Working list: `todo.md` (local, gitignored)
 
@@ -217,6 +220,6 @@ Attach the same lake (DuckDB CLI, notebook, or app):
 | dbt silver (`stg_*`)              | Done                                 |
 | dbt gold (star marts)             | Done                                 |
 | dbt tests (`unique` / `not_null`) | Done                                 |
-| Dagster assets + weekly job       | Done                                 |
+| Prefect flow `nfl_weekly_refresh` | Done                                 |
 | One-command historical load       | Next (runner takes one season today) |
 | Live feeds / multi-sport          | Next. Map: `docs/multi-sport-data.md` |

@@ -2,6 +2,7 @@ export/
 statline-export
 .dagster_home/
 .tmp_dagster_home_*/
+.prefect/
 devlog/
 
 lake/
