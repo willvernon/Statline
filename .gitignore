@@ -4,6 +4,9 @@ statline-export
 .tmp_dagster_home_*/
 .prefect/
 devlog/
+todo.md
+TODO.md
+todo/
 
 lake/
 *.ducklake
