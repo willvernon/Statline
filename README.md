@@ -14,7 +14,7 @@ Python ≥ 3.13 and [uv](https://docs.astral.sh/uv/getting-started/installation/
 From the repo root:
 
 ```bash
-git clone https://github.com/willvernon/Statline.git
+git clone https://github.com/willvernon/statline.git
 cd Statline
 uv run python scripts/setup.py
 ```
